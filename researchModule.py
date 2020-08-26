@@ -5,6 +5,9 @@ from resultTest import resultWindow
 import numpy as np
 
 
+#DEFINE PATH TO MAIN DIRECTORY
+#TXT FILE WILL BE STORE BY YEAR and TILE NUMBER
+
 #Delete un SAFE si taille trop petite / trop de NULL / 60% de nuage et plus --> shutil.rmtree(path)
 #Pour chaque SAFE marquer sa destruction 60% et plus puisqu'il est possible qu'il soit dans le top 5 au début 
 #Fonction d'entré et de sortie du top 5 
@@ -42,6 +45,7 @@ class searchWindow(QtWidgets.QMainWindow):
         
 
         self.listObjSentinel = []
+        #Récupérer la liste pour la tuile si elle existe déjà
         for item in listDirectory :
             if item.split('.')[-1] == 'SAFE' :
                 inSAFE = os.path.join(self.ui.lineEditPath.text(), item)
@@ -134,13 +138,13 @@ class searchWindow(QtWidgets.QMainWindow):
                 #Flag 2 Delete 
                 pass
             else :
-                #create object if pTCloud >= 0.6
+                #create object if pTCloud >= 0.6 mark as DELETE
                 obj.clearPercent = countClear
                 obj.cloudPercent = countCloud
             
             
-
-        self.listObjSentinel.sort(reverse=True, key= lambda x : x.clearPercent)
+        #Traitement des résultats
+        #self.listObjSentinel.sort(reverse=True, key= lambda x : x.clearPercent)
         
         
         row_list =[] #[["pathSAFE", "clearPercent","cloudPercent"]]
@@ -171,9 +175,9 @@ class searchWindow(QtWidgets.QMainWindow):
 #IsTOP5 somewhere + place?
 #Marquer les zones qui sont 95% et + dans la tuile
 class objSentinel : 
-    def __init__(self, pathSAFE='', pathIMG='', cloudPercent=[0]*16, clearPercent=[0]*16) :
+    def __init__(self, pathSAFE='', nameIMG='', cloudPercent=[0]*16, clearPercent=[0]*16) :
             self.pathSAFE = pathSAFE
-            self.pathIMG = pathIMG
+            self.nameIMG = nameIMG
             self.cloudPercent = cloudPercent
             self.clearPercent = clearPercent
 
