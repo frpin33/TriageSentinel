@@ -1,4 +1,4 @@
-import sys, ressource, os, subprocess, time, gdal, csv
+import sys, ressource, os, subprocess, time, gdal, csv, tempfile, pickle, shutil
 from PyQt5 import QtCore, QtGui, QtWidgets
 from ui_menuRecherche import Ui_MainWindow
 from resultTest import resultWindow
@@ -37,14 +37,9 @@ class searchWindow(QtWidgets.QMainWindow):
         sDate = self.ui.startDateEdit.date()
         eDate = self.ui.endDateEdit.date()
         tileNumber = self.ui.lineEditNumero.text()
-        tempDir = "U:\\Mosaique_Sentinel\\temp"
+        tempDir = tempfile.mkdtemp()
         outDir = "U:\\Mosaique_Sentinel\\resultIMG\\"
         
-        self.zone = []
-        if self.ui.lineEditZone.text() :  
-            strZone = self.ui.lineEditZone.text().split(',')
-            for num in strZone :
-                self.zone.append(int(num))
 
         self.listObjSentinel = []
         for item in listDirectory :
@@ -65,72 +60,36 @@ class searchWindow(QtWidgets.QMainWindow):
                             qDate = QtCore.QDate.fromString(date[0],"yyyyMMdd")
                             tile = param[5]
                             if tile == tileNumber and qDate > sDate and qDate < eDate : 
-                                outIMG = outDir + tile + '_' + param[2] + '.img'
+                                outIMG = inSAFE + tile + '_' + param[2] + '.img'
                                 #subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
                                 self.listObjSentinel.append(objSentinel(inSAFE,outIMG))
+                        else :
+                            #delete the SAFE sans traitement shutil.rmtree(path)
+                            pass
 
+        shutil.rmtree(tempDir)
         for obj in self.listObjSentinel :
 
             imgFile = gdal.Open(obj.pathIMG)
             b = imgFile.RasterCount
             array = imgFile.GetRasterBand(1).ReadAsArray()
             
-            if self.zone :
-                x,y = array.shape
+            x,y = array.shape
 
-                firstSplit = np.array_split(array,4,1)
-                splitArray = []
-                for item in firstSplit :
-                    splitArray.append(np.array_split(item,4))
-                
-                countCloud = 0
-                countClear = 0
-                for num in self.zone :
-                    firstNum = int((num-1)/4)
-                    secondNum = (num-1)%4
-                    maxVal = x*y/16 
-
-                    null = 0
-                    clear = 0
-                    cloud = 0
-                    shadow = 0
-                    water = 0
-
-                    for v in np.nditer(splitArray[firstNum][secondNum]) :
-                        val = int(v)
-                        
-                        if val == 0 :
-                            null += 1
-                        
-                        elif val == 1 :
-                            clear += 1
-                        
-                        elif val == 2 :
-                            cloud += 1
-                        
-                        elif val == 3 :
-                            shadow += 1
-                        
-                        elif val == 5 :
-                            water += 1
-
-
-                    pNull = null/maxVal
-                    pClear = clear/maxVal
-                    pCloud = cloud/maxVal
-                    pShadow = shadow/maxVal
-                    pWater = water/maxVal
-                    countCloud += (pCloud+pShadow)
-                    countClear += (pClear+pWater)
-                
-                percentCloud = countCloud/len(self.zone)
-                percentClear = countClear/len(self.zone)
-                obj.clearPercent = percentClear
-                obj.cloudPercent = percentCloud
+            firstSplit = np.array_split(array,4,1)
+            splitArray = []
+            for item in firstSplit :
+                splitArray.append(np.array_split(item,4))
             
-            else :
-                x,y = array.shape
-                maxVal = x*y
+            countCloud = [0.0]*16
+            countClear = [0.0]*16
+            null = 0
+            totalClear = 0
+            totalCloud = 0
+            for num in range(16):
+                firstNum = int(num/4)
+                secondNum = num%4
+                maxVal = x*y/16 
 
                 
                 clear = 0
@@ -138,14 +97,19 @@ class searchWindow(QtWidgets.QMainWindow):
                 shadow = 0
                 water = 0
 
-                for x in np.nditer(array) :
-                    val = int(x)
-
-                    if val == 1 :
+                for v in np.nditer(splitArray[firstNum][secondNum]) :
+                    val = int(v)
+                    
+                    if val == 0 :
+                        null += 1
+                    
+                    elif val == 1 :
                         clear += 1
+                        totalClear += 1
                     
                     elif val == 2 :
                         cloud += 1
+                        totalCloud += 1
                     
                     elif val == 3 :
                         shadow += 1
@@ -153,15 +117,28 @@ class searchWindow(QtWidgets.QMainWindow):
                     elif val == 5 :
                         water += 1
 
+
                 pClear = clear/maxVal
                 pCloud = cloud/maxVal
                 pShadow = shadow/maxVal
                 pWater = water/maxVal
-                
-                percentCloud = (pCloud+pShadow)
-                percentClear = (pClear+pWater)
-                obj.clearPercent = percentClear
-                obj.cloudPercent = percentCloud
+
+                countCloud[num] = (pCloud+pShadow)
+                countClear[num] = (pClear+pWater)
+            
+            divFact = x*y
+            pNull = null/divFact
+            pTCloud = totalCloud/divFact
+            pTClear = totalClear/divFact
+            if pNull > pTClear + pTCloud :
+                #Flag 2 Delete 
+                pass
+            else :
+                #create object if pTCloud >= 0.6
+                obj.clearPercent = countClear
+                obj.cloudPercent = countCloud
+            
+            
 
         self.listObjSentinel.sort(reverse=True, key= lambda x : x.clearPercent)
         
@@ -194,7 +171,7 @@ class searchWindow(QtWidgets.QMainWindow):
 #IsTOP5 somewhere + place?
 #Marquer les zones qui sont 95% et + dans la tuile
 class objSentinel : 
-    def __init__(self, pathSAFE='', pathIMG='', cloudPercent=0, clearPercent=0) :
+    def __init__(self, pathSAFE='', pathIMG='', cloudPercent=[0]*16, clearPercent=[0]*16) :
             self.pathSAFE = pathSAFE
             self.pathIMG = pathIMG
             self.cloudPercent = cloudPercent
