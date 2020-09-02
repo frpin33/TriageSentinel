@@ -11,7 +11,7 @@
 
 
 from PyQt5 import QtGui, QtWidgets, QtCore
-import sys, gdal, qimage2ndarray, os, csv
+import sys, gdal, qimage2ndarray, os, csv, pickle
 import numpy as np
 from PIL import Image
 
@@ -93,15 +93,34 @@ class resultWindow(QtWidgets.QMainWindow):
             else : 
                 self.currentX += 400
 
-    def readCSV(self, pathCSV):
+    def readCSV(self):
 
-
-        with open(pathCSV) as csvfile:
-            reader = csv.reader(csvfile, delimiter=' ')
-            for row in reader:
-                self.addPictureFrame(row[0])
+        path = "U:\\Mosaique_Sentinel\\test\\2018\\Information\\T18TUT.txt"
+        listObj = pickle.load(open(path,'rb'))
+        for row in listObj:
+            self.addPictureFrame(row.pathSAFE)
         
         self.show()
         r=QtCore.QRectF(0,0,1600,1384)
         self.ui.graphicsView.fitInView(r, QtCore.Qt.KeepAspectRatio)
                 
+
+class objSentinel : 
+    def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, under60=True) :
+            self.pathSAFE = pathSAFE
+            self.nameIMG = nameIMG
+            self.totalClearPercent = totalClearPercent
+            self.clearPercent = clearPercent
+            self.isTopFile = isTopFile
+            self.under60 = under60
+
+app = QtWidgets.QApplication(sys.argv)
+
+showResultWindow = resultWindow()
+        
+showResultWindow.readCSV()
+
+
+sys.exit(app.exec_())
+
+
