@@ -45,8 +45,50 @@ class objSentinel :
             self.clearPercent = clearPercent
 
 import pickle
+keepTopValue = 5
+path = "C:/Users/Frederick/Desktop/Work_Git/mosaique/Sentinel_T18TUT/2018/Information/T18TUT.txt"
+listObjSentinel = pickle.load(open(path,'rb'))
+
+topE = [0,0]
+topR =[topE]*keepTopValue
+topTable = [topR]*16
+            
+objNumber = 0
+list2Edit = list(listObjSentinel)
+for obj in listObjSentinel :
+    for num in range(16):
+        
+        topRank = list(topTable[num])
+    
+        currentVal = obj.clearPercent[num]
+
+        if objNumber < keepTopValue :
+
+            topRank[objNumber] = [currentVal, objNumber]
+            obj.isTopFile[num] = True
+            if objNumber == keepTopValue - 1  :
+                topRank.sort(reverse=True, key = lambda tup: tup[0])
 
 
+        elif currentVal > topRank[keepTopValue-1][0] : 
+            objListPosition = topRank[keepTopValue-1][1]
+            #Tester si cette opération est sécuritaire en mémoire
+            topFile2Edit = list(list2Edit[objListPosition].isTopFile) 
+            topFile2Edit[num]= False
+            list2Edit[objListPosition].isTopFile = topFile2Edit
+            obj.isTopFile[num] = True
+            topRank[keepTopValue-1] = [currentVal, objNumber]
+            topRank.sort(reverse=True, key = lambda tup: tup[0])
+            
+        topTable[num] = topRank
+    
+    objNumber += 1
+            
+
+print(objNumber)
+
+
+"""
 a = objSentinel('a', 'b', 50,49)
 b = [1,2]
 pickle.dump(a,open("test.txt","wb"))
@@ -56,8 +98,7 @@ c = pickle.load(open("test.txt",'rb'))
 #i = [x[0] for x in os.walk(pathGranule)]
 #j = os.listdir(pathGranule)
 #k = os.listdir(pathQI)
-
-"""t = time.time()
+t = time.time()
 raster = gdal.Open(smallI)
 rArray = raster.GetRasterBand(1).ReadAsArray()
 gArray = raster.GetRasterBand(2).ReadAsArray()

@@ -96,6 +96,7 @@ class resultWindow(QtWidgets.QMainWindow):
     def readCSV(self):
 
         path = "U:\\Mosaique_Sentinel\\test\\2018\\Information\\T18TUT.txt"
+        path = "C:/Users/Frederick/Desktop/Work_Git/mosaique/Sentinel_T18TUT/2018/Information/T18TUT.txt"
         listObj = pickle.load(open(path,'rb'))
         for row in listObj:
             self.addPictureFrame(row.pathSAFE)

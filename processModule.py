@@ -6,10 +6,11 @@ import numpy as np
 
 
 #DEFINE PATH TO MAIN DIRECTORY
-#dataLocation = "D:/Mosaique_Sentinel/Sentinel_T18TUT"+
-dataLocation = "U:/Mosaique_Sentinel/test"
+#dataLocation = "D:/Mosaique_Sentinel/Sentinel_T18TUT"
+#dataLocation = "U:/Mosaique_Sentinel/test"
+dataLocation = "C:\\Users\\Frederick\\Desktop\\Work_Git\\mosaique\\Sentinel_T18TUT"
 
-keepTopValue = 5 
+keepTopValue = 4 
 
 #Normalement dans datalocation, il va avoir un dossier pour chaque année et dans le dossier tout les SAFE de l'année 
 #Attention si le dossier de l'année n'existe pas  os.path.exists(dataLocation+"/2020")
@@ -101,7 +102,7 @@ class searchWindow(QtWidgets.QMainWindow):
                                     if tile == tileNumber and qDate > sDate and qDate < eDate :
                                         nameIMG = tile + '_' + param[2] + '.img'
                                         outIMG = os.path.join(inSAFE, nameIMG)
-                                        subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
+                                        #subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
                                         newSentinelObj.append(objSentinel(inSAFE,nameIMG))
                                 else :
                                     shutil.rmtree(inSAFE)
@@ -189,13 +190,16 @@ class searchWindow(QtWidgets.QMainWindow):
                 
             self.listObjSentinel = self.listObjSentinel + newSentinelObj
             
-            topTable = [[(0,0)]*keepTopValue]*16
+            topE = [0,0]
+            topR =[topE]*keepTopValue
+            topTable = [topR]*16
             
             objNumber = 0
+            list2Edit = list(self.listObjSentinel)
             for obj in self.listObjSentinel :
                 for num in range(16):
                     
-                    topRank = topTable[num]
+                    topRank = list(topTable[num])
                 
                     currentVal = obj.clearPercent[num]
 
@@ -209,8 +213,11 @@ class searchWindow(QtWidgets.QMainWindow):
 
                     elif currentVal > topRank[keepTopValue-1][0] : 
                         objListPosition = topRank[keepTopValue-1][1]
+                        topFile2Edit = list(list2Edit[objListPosition].isTopFile) 
+                        topFile2Edit[num]= False
+                        list2Edit[objListPosition].isTopFile = topFile2Edit
                         #Tester si cette opération est sécuritaire en mémoire
-                        self.listObjSentinel[objListPosition].isTopFile[num] = False
+                        #self.listObjSentinel[objListPosition].isTopFile[num] = False
                         obj.isTopFile[num] = True
                         topRank[keepTopValue-1] = (currentVal, objNumber)
                         topRank.sort(reverse=True, key = lambda tup: tup[0])
@@ -218,7 +225,15 @@ class searchWindow(QtWidgets.QMainWindow):
                     topTable[num] = topRank
                 
                 objNumber += 1
-            
+            #loop mettre les False dans la vrai list
+            #maybe juste par range    
+            #for obj in self.listObjSentinel :
+            for i in range(len(self.listObjSentinel)) :
+                for j in range(16):
+                    if list2Edit[i].isTopFile[j] == False and self.listObjSentinel[i].isTopFile[j] == True :
+                        self.listObjSentinel[i].isTopFile[j] = False
+
+
             for obj in self.listObjSentinel :
                 if not any(obj.isTopFile) and not obj.under60 : 
                     shutil.rmtree(obj.pathSAFE)
