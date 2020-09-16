@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PIL import Image
 import qimage2ndarray
 import matplotlib.image as mpimg
-
+import zipfile, shutil
 
 
 #path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180514T155911_N0206_R097_T18TUT_20180514T194414.SAFE/GRANULE/L1C_T18TUT_A015109_20180514T160535/IMG_DATA"
@@ -34,9 +34,87 @@ jpgPath  = "U:/Mosaique_Sentinel/BandDesignation.jpg"
 
 delPath = "U:/Mosaique_Sentinel/test/S2A_MSIL1C_20180613T155901_N0206_R097_T18TUT_20180613T194300.SAFE"
 
+
+
+path2018 = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\2018"
+
+a = os.listdir(path2018)
+
+size = len(a)
+countZip = 0
+countSafe = 0
+
+listSafe = []
+listZip = []
+
+for i in a :
+
+
+    if i.split('.')[-1] == 'zip' :
+        countZip += 1
+        inpath = os.path.join(path2018, i)
+        listZip.append(inpath)
+        #with zipfile.ZipFile(inpath, 'r') as zip_ref:
+            #pass
+            #files = list(filter(lambda f: f.startswith("subdir"), zip_ref.namelist()))
+        #ytr= zip_ref.namelist()[0].split('/')[0]
+        #gdf = zip_ref.infolist()
+        #print(files)
+    else :
+        countSafe += 1 
+        listSafe.append(i)
+
+countMatch = 0
+
+"""
+uwu = []
+for z in listZip :
+    if z[0] =='L1C' :
+        if z[1] == 'T18UWU' :
+            uwu.append(z)
+    if z[0] == 'S2B' or z[0] == 'S2A' :
+        if z[5] == 'T18UWU':
+            uwu.append(z)
+
+uwus = []   
+for safe in listSafe :
+        if safe[5] == 'T18UWU' :
+            uwus.append(safe)
+"""  
+
+for safe in listSafe :
+    for z in listZip : 
+
+        with zipfile.ZipFile(z, 'r') as zip_ref:
+            pass
+        ytr= zip_ref.namelist()[0].split('/')[0]
+        if safe == ytr : 
+            countMatch +=1
+        """
+        if z[0] =='L1C' :
+            if safe[5] == z[1] and safe[2] == z[3] :
+                countMatch += 1 
+        if z[0] == 'S2B' or z[0] == 'S2A' :
+            if safe[5] == z[5] and safe[2] == z[2] :
+                countMatch += 1""" 
+              
+print(countZip/size)
+print(countSafe/size)
+
+"""
+        inpath = os.path.join(path2018, i)
+        try : 
+            with zipfile.ZipFile(inpath, 'r') as zip_ref:
+                zip_ref.extractall(path2018)
+            shutil.rmtree(inpath)
+        except :
+            print('here')"""
+
+
+
 #import shutil
 #shutil.rmtree(path)
-
+"""
 class objSentinel : 
     def __init__(self, pathSAFE='', pathIMG='', cloudPercent=0, clearPercent=0) :
             self.pathSAFE = pathSAFE
@@ -48,6 +126,7 @@ import pickle
 keepTopValue = 5
 path = "C:/Users/Frederick/Desktop/Work_Git/mosaique/Sentinel_T18TUT/2018/Information/T18TUT.txt"
 listObjSentinel = pickle.load(open(path,'rb'))
+listObjSentinel = []
 
 topE = [0,0]
 topR =[topE]*keepTopValue
@@ -88,7 +167,7 @@ for obj in listObjSentinel :
 print(objNumber)
 
 
-"""
+
 a = objSentinel('a', 'b', 50,49)
 b = [1,2]
 pickle.dump(a,open("test.txt","wb"))

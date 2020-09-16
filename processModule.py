@@ -7,13 +7,13 @@ import numpy as np
 
 #DEFINE PATH TO MAIN DIRECTORY
 #dataLocation = "D:/Mosaique_Sentinel/Sentinel_T18TUT"
-#dataLocation = "U:/Mosaique_Sentinel/test"
-dataLocation = "C:\\Users\\Frederick\\Desktop\\Work_Git\\mosaique\\Sentinel_T18TUT"
+dataLocation = "U:/Mosaique_Sentinel/test"
+#dataLocation = "C:\\Users\\Frederick\\Desktop\\Work_Git\\mosaique\\Sentinel_T18TUT"
+
+#dataLocation = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
 
 keepTopValue = 4 
 
-#Normalement dans datalocation, il va avoir un dossier pour chaque année et dans le dossier tout les SAFE de l'année 
-#Attention si le dossier de l'année n'existe pas  os.path.exists(dataLocation+"/2020")
 #Créer manuellement les fichiers Information pour chaque année
 #TXT FILE WILL BE STORE BY YEAR and TILE NUMBER
 
@@ -181,98 +181,69 @@ class searchWindow(QtWidgets.QMainWindow):
                 pTClear = totalClear/divFact
                 
                 if pNull > pTClear + pTCloud :
-                    obj.under60 = False
+                    obj.underPercent = False
                 else :
-                    if pTCloud >= 0.6 : 
-                        obj.under60 = False
+                    if pTCloud >= 0.5 : 
+                        obj.underPercent = False
                     obj.clearPercent = countClear
                     obj.totalClearPercent = pTClear
                 
             self.listObjSentinel = self.listObjSentinel + newSentinelObj
             
-            topE = [0,0]
-            topR =[topE]*keepTopValue
-            topTable = [topR]*16
+            
+            topTable =[[(0,0) for j in range(keepTopValue)] for i in range(16)]
+
+            isTopFile = [[False for j in range(16)] for i in range(len(self.listObjSentinel))]
             
             objNumber = 0
-            list2Edit = list(self.listObjSentinel)
+
             for obj in self.listObjSentinel :
                 for num in range(16):
                     
-                    topRank = list(topTable[num])
-                
+                    topRank = topTable[num]
+
                     currentVal = obj.clearPercent[num]
 
                     if objNumber < keepTopValue :
 
                         topRank[objNumber] = (currentVal, objNumber)
-                        obj.isTopFile[num] = True
+                        isTopFile[objNumber][num] = True
                         if objNumber == keepTopValue - 1  :
                             topRank.sort(reverse=True, key = lambda tup: tup[0])
 
 
                     elif currentVal > topRank[keepTopValue-1][0] : 
                         objListPosition = topRank[keepTopValue-1][1]
-                        topFile2Edit = list(list2Edit[objListPosition].isTopFile) 
-                        topFile2Edit[num]= False
-                        list2Edit[objListPosition].isTopFile = topFile2Edit
-                        #Tester si cette opération est sécuritaire en mémoire
-                        #self.listObjSentinel[objListPosition].isTopFile[num] = False
-                        obj.isTopFile[num] = True
+                        isTopFile[objListPosition][num] = False
+                        isTopFile[objNumber][num]= True
                         topRank[keepTopValue-1] = (currentVal, objNumber)
                         topRank.sort(reverse=True, key = lambda tup: tup[0])
                         
                     topTable[num] = topRank
                 
                 objNumber += 1
-            #loop mettre les False dans la vrai list
-            #maybe juste par range    
-            #for obj in self.listObjSentinel :
+
             for i in range(len(self.listObjSentinel)) :
-                for j in range(16):
-                    if list2Edit[i].isTopFile[j] == False and self.listObjSentinel[i].isTopFile[j] == True :
-                        self.listObjSentinel[i].isTopFile[j] = False
+                self.listObjSentinel[i].isTopFile = isTopFile[i]
 
 
             for obj in self.listObjSentinel :
-                if not any(obj.isTopFile) and not obj.under60 : 
+                if not any(obj.isTopFile) and not obj.underPercent : 
                     shutil.rmtree(obj.pathSAFE)
+                    self.listObjSentinel.remove(obj)
 
             self.listObjSentinel.sort(reverse=True, key= lambda x : x.totalClearPercent)
             pickle.dump(self.listObjSentinel,open(pathStoreFile,"wb"))
         
-        """
-        row_list =[] #[["pathSAFE", "clearPercent","cloudPercent"]]
-        pathCSV = 'results.csv'
-        for obj in self.listObjSentinel :
-            row_list.append([str(obj.pathSAFE)])#, str(obj.clearPercent), str(obj.cloudPercent)])
-        
-        with open(pathCSV, 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerows(row_list)
-
-        self.showResultWindow = resultWindow()
-        
-        self.showResultWindow.readCSV(pathCSV)
-
-
-        for obj in self.listObjSentinel :
-            self.showResultWindow.addPictureFrame(obj.pathSAFE)
-
-        self.showResultWindow.show()
-        r=QtCore.QRectF(0,0,1600,1384)
-        self.showResultWindow.ui.graphicsView.fitInView(r, QtCore.Qt.KeepAspectRatio)"""
-
-
          
 class objSentinel : 
-    def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, under60=True) :
+    def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, underPercent=True) :
             self.pathSAFE = pathSAFE
             self.nameIMG = nameIMG
             self.totalClearPercent = totalClearPercent
             self.clearPercent = clearPercent
             self.isTopFile = isTopFile
-            self.under60 = under60
+            self.underPercent = underPercent
 
 
 
