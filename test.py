@@ -11,7 +11,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PIL import Image
 import qimage2ndarray
 import matplotlib.image as mpimg
-import zipfile, shutil
+import zipfile, shutil, tempfile, subprocess
 
 
 #path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180514T155911_N0206_R097_T18TUT_20180514T194414.SAFE/GRANULE/L1C_T18TUT_A015109_20180514T160535/IMG_DATA"
@@ -36,25 +36,74 @@ delPath = "U:/Mosaique_Sentinel/test/S2A_MSIL1C_20180613T155901_N0206_R097_T18TU
 
 
 
-path2018 = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\2018"
+path2018 = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\2017"
 
-a = os.listdir(path2018)
+listSAFEDirectory = os.listdir(path2018)
 
-size = len(a)
+tempDir = tempfile.mkdtemp()
+
+#storeFileName = tileNumber + '.txt'
+#pathStoreFile = os.path.join(yearPath, "Information", storeFileName)
+
+listObjSentinel = []
+
+
+
+newSentinelObj = []
+for dirName in listSAFEDirectory :
+    if dirName.split('.')[-1] == 'SAFE' :
+        inSAFE = os.path.join(path2018, dirName)
+        pathGranule = os.path.join(inSAFE, 'GRANULE')
+        L1CPart = os.listdir(pathGranule)[0]
+        pathData = os.path.join(pathGranule, L1CPart, 'IMG_DATA')
+        listFileData = os.listdir(pathData)
+        for image in listFileData : 
+            if image.split('_')[-1] == "TCI.jp2":
+                TCIPath = os.path.join(pathData, image)
+                if os.path.getsize(TCIPath) > 50*10**6 : 
+
+                    param = dirName.split('_')
+                    date = param[2].split('T')
+                    qDate = QtCore.QDate.fromString(date[0],"yyyyMMdd")
+                    tile = param[5]
+                    nameIMG = tile + '_' + param[2] + '.img'
+                    outIMG = os.path.join(inSAFE, nameIMG)
+                    if os.path.exists(outIMG) :
+                        pass
+                    else :
+                        subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
+                    #newSentinelObj.append(objSentinel(inSAFE,nameIMG))
+                else :
+                    print(inSAFE)
+                break
+shutil.rmtree(tempDir)
+
+"""size = len(a)
 countZip = 0
 countSafe = 0
 
 listSafe = []
-listZip = []
+listTile = []
 
 for i in a :
+    tile = i.split('_')[5]
+    if tile not in listTile : 
+        listTile.append(tile)
+listTile.sort()"""
+    
 
 
-    if i.split('.')[-1] == 'zip' :
+"""if i.split('.')[-1] == 'zip' :
         countZip += 1
         inpath = os.path.join(path2018, i)
         listZip.append(inpath)
-        #with zipfile.ZipFile(inpath, 'r') as zip_ref:
+        try :
+            pass
+            #os.remove(inpath)
+            #shutil.rmtree(inpath)
+        except:
+            print(inpath)
+        #
             #pass
             #files = list(filter(lambda f: f.startswith("subdir"), zip_ref.namelist()))
         #ytr= zip_ref.namelist()[0].split('/')[0]
@@ -62,7 +111,7 @@ for i in a :
         #print(files)
     else :
         countSafe += 1 
-        listSafe.append(i)
+        listSafe.append(i)"""
 
 countMatch = 0
 
@@ -80,23 +129,41 @@ uwus = []
 for safe in listSafe :
         if safe[5] == 'T18UWU' :
             uwus.append(safe)
-"""  
+
+import collections
+ZipL = []
+#or safe in listSafe :
+
+
+    inpath = os.path.join(path2018, z)
+    try : 
+        with zipfile.ZipFile(inpath, 'r') as zip_ref:
+            zip_ref.extractall(path2018)
+        #shutil.rmtree(inpath)
+    except Exception as e:
+        print(e)
+
+    #with zipfile.ZipFile(z, 'r') as zip_ref:
+    #    pass
+    #ytr= zip_ref.namelist()[0].split('/')[0]
+    #ZipL.append(ytr)
+
+print(len(ZipL))
+print([item for item, count in collections.Counter(ZipL).items() if count > 1])
 
 for safe in listSafe :
-    for z in listZip : 
+    if safe not in ZipL : 
+        print(safe)
+  
+#if safe == ytr : 
+#countMatch +=1
 
-        with zipfile.ZipFile(z, 'r') as zip_ref:
-            pass
-        ytr= zip_ref.namelist()[0].split('/')[0]
-        if safe == ytr : 
-            countMatch +=1
-        """
-        if z[0] =='L1C' :
-            if safe[5] == z[1] and safe[2] == z[3] :
-                countMatch += 1 
-        if z[0] == 'S2B' or z[0] == 'S2A' :
-            if safe[5] == z[5] and safe[2] == z[2] :
-                countMatch += 1""" 
+if z[0] =='L1C' :
+    if safe[5] == z[1] and safe[2] == z[3] :
+        countMatch += 1 
+if z[0] == 'S2B' or z[0] == 'S2A' :
+    if safe[5] == z[5] and safe[2] == z[2] :
+        countMatch += 1""" 
               
 print(countZip/size)
 print(countSafe/size)

@@ -102,7 +102,7 @@ class searchWindow(QtWidgets.QMainWindow):
                                     if tile == tileNumber and qDate > sDate and qDate < eDate :
                                         nameIMG = tile + '_' + param[2] + '.img'
                                         outIMG = os.path.join(inSAFE, nameIMG)
-                                        #subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
+                                        subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
                                         newSentinelObj.append(objSentinel(inSAFE,nameIMG))
                                 else :
                                     shutil.rmtree(inSAFE)
