@@ -11,8 +11,18 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PIL import Image
 import qimage2ndarray
 import matplotlib.image as mpimg
-import zipfile, shutil, tempfile, subprocess
+import zipfile, shutil, tempfile, subprocess, sys, pickle
+#from resultTest import resultWindow 
 
+
+class objSentinel : 
+    def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, underPercent=True) :
+            self.pathSAFE = pathSAFE
+            self.nameIMG = nameIMG
+            self.totalClearPercent = totalClearPercent
+            self.clearPercent = clearPercent
+            self.isTopFile = isTopFile
+            self.underPercent = underPercent
 
 #path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180514T155911_N0206_R097_T18TUT_20180514T194414.SAFE/GRANULE/L1C_T18TUT_A015109_20180514T160535/IMG_DATA"
 path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180613T155901_N0206_R097_T18TUT_20180613T194300.SAFE/GRANULE/L1C_T18TUT_A015538_20180613T155924/IMG_DATA"
@@ -35,50 +45,134 @@ jpgPath  = "U:/Mosaique_Sentinel/BandDesignation.jpg"
 delPath = "U:/Mosaique_Sentinel/test/S2A_MSIL1C_20180613T155901_N0206_R097_T18TUT_20180613T194300.SAFE"
 
 
+Path = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\Information"
+listDir = os.listdir(Path)
+for item in listDir :
+    newpath = os.path.join(Path, item)
+    if newpath == "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\Information\\T18UVV.txt" :
+        pass
+    else :
+        #pathStoreFile = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\Information\\T18UVV.txt"
+        listObjSentinel = pickle.load(open(newpath,'rb'))
 
-path2018 = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\2017"
+        for obj in listObjSentinel : 
+            oldTable = obj.clearPercent
+            tableVal = [0]*16
 
-listSAFEDirectory = os.listdir(path2018)
+            tableVal[0] = oldTable[0]
+            tableVal[1] = oldTable[4]
+            tableVal[2] = oldTable[8]
+            tableVal[3] = oldTable[12]
+            tableVal[4] = oldTable[1]
+            tableVal[5] = oldTable[5]
+            tableVal[6] = oldTable[9]
+            tableVal[7] = oldTable[13]
+            tableVal[8] = oldTable[2]
+            tableVal[9] = oldTable[6]
+            tableVal[10] = oldTable[10]
+            tableVal[11] = oldTable[14]
+            tableVal[12] = oldTable[3]
+            tableVal[13] = oldTable[7]
+            tableVal[14] = oldTable[11]
+            tableVal[15] = oldTable[15]
+            obj.clearPercent = tableVal
 
-tempDir = tempfile.mkdtemp()
+        pickle.dump(listObjSentinel ,open(newpath,"wb"))
+
+
+
+
+
+
+"""
+for item in years:
+    yPath = os.path.join(pathSentinel, item)
+    listSAFEDirectory = os.listdir(yPath)
+    for safe in listSAFEDirectory :
+        num = safe.split('_')[5]
+        if num not in listTuile :
+            listTuile[num] = 1
+        else :
+            listTuile[num] = listTuile[num] +1 
+         safePath = os.path.join(yPath, safe)
+        try : 
+            
+
+            param = safe.split('_')
+            tile = param[5]
+            nameIMG = tile + '_' + param[2] + '.img'
+            outIMG = os.path.join(safePath, nameIMG)
+            if os.path.exists(outIMG) :
+                            pass
+            else :
+                #print('dont exist')
+                subprocess.call(["launchConda.bat", safePath, outIMG, tempDir])
+            #newSentinelObj.append(objSentinel(inSAFE,nameIMG))
+            
+        except :
+            pass
+#shutil.rmtree(tempDir)
+print(sys.argv[1])
+#print('done')
+path2020 = os.path.join(pathSentinel, '2020')
+listSAFEDirectory = os.listdir(path2020)
+p1 = listSAFEDirectory[:114]
+p2 = listSAFEDirectory[114:228]
+p3 = listSAFEDirectory[228:342]
+p4 = listSAFEDirectory[342:]
+
+if sys.argv[1] == '1' :
+    listSafe = p1
+elif sys.argv[1] == '2' :
+    listSafe = p2
+elif sys.argv[1] == '3' :
+    listSafe = p3
+elif sys.argv[1] == '4' :
+    listSafe = p4
+#tempDir = tempfile.mkdtemp()
 
 #storeFileName = tileNumber + '.txt'
 #pathStoreFile = os.path.join(yearPath, "Information", storeFileName)
 
 listObjSentinel = []
 
-
+listNotSize = []
 
 newSentinelObj = []
-for dirName in listSAFEDirectory :
+for dirName in listSafe :
     if dirName.split('.')[-1] == 'SAFE' :
-        inSAFE = os.path.join(path2018, dirName)
-        pathGranule = os.path.join(inSAFE, 'GRANULE')
-        L1CPart = os.listdir(pathGranule)[0]
-        pathData = os.path.join(pathGranule, L1CPart, 'IMG_DATA')
-        listFileData = os.listdir(pathData)
-        for image in listFileData : 
-            if image.split('_')[-1] == "TCI.jp2":
-                TCIPath = os.path.join(pathData, image)
-                if os.path.getsize(TCIPath) > 50*10**6 : 
-
-                    param = dirName.split('_')
-                    date = param[2].split('T')
-                    qDate = QtCore.QDate.fromString(date[0],"yyyyMMdd")
-                    tile = param[5]
-                    nameIMG = tile + '_' + param[2] + '.img'
-                    outIMG = os.path.join(inSAFE, nameIMG)
-                    if os.path.exists(outIMG) :
-                        pass
-                    else :
-                        subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
-                    #newSentinelObj.append(objSentinel(inSAFE,nameIMG))
-                else :
-                    print(inSAFE)
-                break
+        try :  
+            inSAFE = os.path.join(path2020, dirName)
+            param = dirName.split('_')
+            date = param[2].split('T')
+            tile = param[5]
+            nameIMG = tile + '_' + param[2] + '.img'
+            outIMG = os.path.join(inSAFE, nameIMG)
+            if os.path.exists(outIMG) :
+                pass
+            else :
+                #print('dont exist')
+                subprocess.call(["launchConda.bat", inSAFE, outIMG, tempDir])
+            #newSentinelObj.append(objSentinel(inSAFE,nameIMG))
+                    
+        except :
+            pass
 shutil.rmtree(tempDir)
 
-"""size = len(a)
+app = QtWidgets.QApplication(sys.argv)
+
+showResultWindow = resultWindow()
+
+for row in listNotSize:
+            showResultWindow.addPictureFrame(row)
+            
+showResultWindow.show()
+r=QtCore.QRectF(0,0,1600,1384)
+showResultWindow.ui.graphicsView.fitInView(r, QtCore.Qt.KeepAspectRatio)
+
+sys.exit(app.exec_())
+
+size = len(a)
 countZip = 0
 countSafe = 0
 
@@ -165,8 +259,8 @@ if z[0] == 'S2B' or z[0] == 'S2A' :
     if safe[5] == z[5] and safe[2] == z[2] :
         countMatch += 1""" 
               
-print(countZip/size)
-print(countSafe/size)
+#print(countZip/size)
+#print(countSafe/size)
 
 """
         inpath = os.path.join(path2018, i)
