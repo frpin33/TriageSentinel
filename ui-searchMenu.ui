@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Dialog</class>
- <widget class="QDialog" name="Dialog">
+ <class>searchMenu</class>
+ <widget class="QDialog" name="searchMenu">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>Module de Recherche -- Tuile Sentinel</string>
   </property>
   <widget class="QGraphicsView" name="graphicsView">
    <property name="geometry">
@@ -27,7 +27,7 @@
    <property name="geometry">
     <rect>
      <x>5</x>
-     <y>290</y>
+     <y>250</y>
      <width>141</width>
      <height>16</height>
     </rect>
@@ -40,7 +40,7 @@
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>40</y>
+     <y>20</y>
      <width>81</width>
      <height>16</height>
     </rect>
@@ -53,7 +53,7 @@
    <property name="geometry">
     <rect>
      <x>110</x>
-     <y>40</y>
+     <y>20</y>
      <width>151</width>
      <height>20</height>
     </rect>
@@ -66,7 +66,7 @@
    <property name="geometry">
     <rect>
      <x>60</x>
-     <y>360</y>
+     <y>310</y>
      <width>151</width>
      <height>151</height>
     </rect>
@@ -86,7 +86,7 @@ image: url(:/Image/ExempleZone.PNG);</string>
    <property name="geometry">
     <rect>
      <x>20</x>
-     <y>60</y>
+     <y>40</y>
      <width>81</width>
      <height>16</height>
     </rect>
@@ -99,7 +99,7 @@ image: url(:/Image/ExempleZone.PNG);</string>
    <property name="geometry">
     <rect>
      <x>145</x>
-     <y>290</y>
+     <y>250</y>
      <width>121</width>
      <height>20</height>
     </rect>
@@ -112,7 +112,7 @@ image: url(:/Image/ExempleZone.PNG);</string>
    <property name="geometry">
     <rect>
      <x>75</x>
-     <y>560</y>
+     <y>620</y>
      <width>111</width>
      <height>23</height>
     </rect>
@@ -124,21 +124,21 @@ image: url(:/Image/ExempleZone.PNG);</string>
   <widget class="QLabel" name="label_5">
    <property name="geometry">
     <rect>
-     <x>70</x>
-     <y>320</y>
-     <width>151</width>
+     <x>130</x>
+     <y>280</y>
+     <width>131</width>
      <height>16</height>
     </rect>
    </property>
    <property name="text">
-    <string>Exemple de format : 1,5,9,13 </string>
+    <string>Exemple de format : 1,5,9 </string>
    </property>
   </widget>
   <widget class="QGroupBox" name="groupBoxDate">
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>100</y>
+     <y>80</y>
      <width>251</width>
      <height>151</height>
     </rect>
@@ -232,10 +232,394 @@ image: url(:/Image/ExempleZone.PNG);</string>
    <property name="geometry">
     <rect>
      <x>10</x>
-     <y>600</y>
+     <y>650</y>
      <width>251</width>
      <height>131</height>
     </rect>
+   </property>
+  </widget>
+  <widget class="QCheckBox" name="checkBoxShowZone">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>280</y>
+     <width>111</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Afficher les zones</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEditSelectTile">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>470</y>
+     <width>171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>7</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+   <property name="readOnly">
+    <bool>true</bool>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_7">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>470</y>
+     <width>91</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Tuile sélectionné :</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBoxBand2">
+   <property name="geometry">
+    <rect>
+     <x>90</x>
+     <y>520</y>
+     <width>75</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maxVisibleItems">
+    <number>15</number>
+   </property>
+   <item>
+    <property name="text">
+     <string>B01</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B02</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B03</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B04</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B05</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B06</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B07</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B08</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B8A</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B09</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B10</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B11</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B12</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QComboBox" name="comboBoxBand3">
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>520</y>
+     <width>75</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maxVisibleItems">
+    <number>15</number>
+   </property>
+   <item>
+    <property name="text">
+     <string>B01</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B02</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B03</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B04</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B05</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B06</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B07</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B08</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B8A</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B09</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B10</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B11</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B12</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QLabel" name="label_8">
+   <property name="geometry">
+    <rect>
+     <x>15</x>
+     <y>500</y>
+     <width>47</width>
+     <height>13</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Bande 1</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_9">
+   <property name="geometry">
+    <rect>
+     <x>105</x>
+     <y>500</y>
+     <width>47</width>
+     <height>13</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Bande 2</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_10">
+   <property name="geometry">
+    <rect>
+     <x>195</x>
+     <y>500</y>
+     <width>47</width>
+     <height>13</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Bande 3</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="lineEditSaveTile">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>570</y>
+     <width>171</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>7</pointsize>
+     <weight>75</weight>
+     <bold>true</bold>
+    </font>
+   </property>
+   <property name="text">
+    <string/>
+   </property>
+  </widget>
+  <widget class="QLabel" name="label_11">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>550</y>
+     <width>141</width>
+     <height>16</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Nom du fichier sauvegardé</string>
+   </property>
+  </widget>
+  <widget class="QPushButton" name="pushButtonSaveBand">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="geometry">
+    <rect>
+     <x>180</x>
+     <y>565</y>
+     <width>75</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Sauvegarder</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="comboBoxBand1">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>520</y>
+     <width>75</width>
+     <height>22</height>
+    </rect>
+   </property>
+   <property name="maxVisibleItems">
+    <number>15</number>
+   </property>
+   <item>
+    <property name="text">
+     <string>B01</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B02</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B03</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B04</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B05</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B06</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B07</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B08</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B8A</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B09</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B10</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B11</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>B12</string>
+    </property>
+   </item>
+  </widget>
+  <widget class="QCheckBox" name="checkBoxCutVersion">
+   <property name="geometry">
+    <rect>
+     <x>70</x>
+     <y>590</y>
+     <width>181</width>
+     <height>20</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Sauvegarder la version découpée</string>
    </property>
   </widget>
  </widget>

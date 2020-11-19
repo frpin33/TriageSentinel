@@ -3,15 +3,17 @@ import sys, gdal, qimage2ndarray, os, csv, pickle
 import numpy as np
 from PIL import Image
 import ressource
-from ui_menuRecherche import Ui_Dialog
-from fileProcessing import dataLocation
+from ui_menuRecherche import Ui_searchMenu
+#from fileProcessing import dataLocation
+dataLocation = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
+
 
 
 class resultWindow(QtWidgets.QMainWindow):
 
     def __init__(self):
         super(resultWindow,self).__init__()
-        self.ui = Ui_Dialog()
+        self.ui = Ui_searchMenu()
         self.ui.setupUi(self)
         self.currentX = 10
         self.currentY = 0
@@ -19,6 +21,12 @@ class resultWindow(QtWidgets.QMainWindow):
         self.ui.graphicsView.setScene(self.scene)
         self.ui.pushButtonLaunch.pressed.connect(self.startSearch)
         self.ui.groupBoxDate.clicked.connect(self.groupDateChange)
+        self.currentRect = None
+        self.pastRect = None
+        self.lineItemList = []
+
+        
+        ####add connect ici
 
     def groupDateChange(self, val):
         self.ui.label.setEnabled(True)
@@ -57,6 +65,9 @@ class resultWindow(QtWidgets.QMainWindow):
     
     def startSearch(self) :
         self.scene = QtWidgets.QGraphicsScene()
+        self.ui.graphicsView.mousePressEvent = QtWidgets.QGraphicsView.mousePressEvent
+        try : self.ui.checkBoxShowZone.stateChanged.disconnect()
+        except : pass
         self.ui.graphicsView.setScene(self.scene)
         tileNumber = self.ui.lineEditNumero.text()
         tileName = tileNumber + ".txt"
@@ -78,7 +89,13 @@ class resultWindow(QtWidgets.QMainWindow):
                     qDate = QtCore.QDate.fromString(date[0],"yyyyMMdd")
                     if qDate > startDate and qDate < endDate :
                         newList.append(obj)
-                self.currentListSAFE = newList
+                if newList :
+                    self.currentListSAFE = newList
+                else : 
+                    strResult = 'Aucune tuile disponible pour la période demandée' 
+                    self.ui.plainTextEdit.setPlainText(strResult)
+                    return
+
         
             nbObj = len(self.currentListSAFE)
             zoneFilter = self.getZoneFilter()
@@ -107,7 +124,6 @@ class resultWindow(QtWidgets.QMainWindow):
             self.currentThread.finished.connect(self.addPictureOnFrame)
             self.currentThread.start()
             
-        
         else : 
             strResult = 'Aucune tuile de la base de donnée possède le numéro demandé' 
             self.ui.plainTextEdit.setPlainText(strResult)
@@ -139,7 +155,89 @@ class resultWindow(QtWidgets.QMainWindow):
             self.currentThread.start()
         except:
             strResult = 'Chargement terminé'
-            self.ui.plainTextEdit.setPlainText(strResult)  
+            self.ui.plainTextEdit.setPlainText(strResult)
+            self.ui.graphicsView.mousePressEvent = self.clicOnQraphicsView
+            if self.ui.checkBoxShowZone.isChecked() :
+                self.newCommandZoneLine(2)
+            self.ui.checkBoxShowZone.stateChanged.connect(self.newCommandZoneLine)  
+
+    def newCommandZoneLine(self, state):
+
+        if state == 2 : 
+            itemList = self.scene.items()
+            pen = QtGui.QPen(QtCore.Qt.yellow, 4)
+            self.lineItemList = []
+            for item in itemList :
+                if isinstance(item, QtWidgets.QGraphicsPixmapItem) :
+                    geo = item.boundingRect()
+                    distX = int(geo.width()/4)
+                    distY = int(geo.height()/4)
+                    for i in range(1,4) :
+                        lineX =self.scene.addLine(geo.x()+distX*i, geo.y(), geo.x()+distX*i, geo.y()+geo.height(), pen)
+                        lineX.setZValue(3) 
+                        lineY =self.scene.addLine(geo.x(),geo.y()+distY*i, geo.x()+geo.width(), geo.y()+distY*i, pen)
+                        lineY.setZValue(3)
+                        self.lineItemList.append(lineX)
+                        self.lineItemList.append(lineY)
+
+
+        elif state == 0 :
+            if self.lineItemList :
+                for line in self.lineItemList:
+                    self.scene.removeItem(line)
+        
+    def saveBandCombinaison(self) : #Fonction d'écrire des tifs à faire dans tifCreation Check version cut
+        cutVersion = self.ui.checkBoxCutVersion.isChecked()
+
+        self.customName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand.tif'
+        self.customPath = os.path.join(item.fileLocation, self.customName)
+        self.customCutName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand_Cut.tif'
+        self.customCutPath = os.path.join(item.fileLocation, self.customCutName)
+
+
+    def clicOnQraphicsView(self, mouseEvent) : 
+        mousePosition = mouseEvent.pos()
+        items = self.ui.graphicsView.items(mousePosition)
+        isSelection = False
+        for item in items :
+            if isinstance(item, (QtWidgets.QGraphicsPixmapItem, QtWidgets.QGraphicsTextItem)):
+                dirName = os.path.basename(item.fileLocation) 
+                paramOfName = dirName.split('_')
+                nameOfPicture = paramOfName[-5]
+
+                customName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand.tif'
+                self.customPath = os.path.join(item.fileLocation, customName)
+
+                self.ui.lineEditSelectTile.setText(nameOfPicture)
+                self.ui.lineEditSaveTile.setText(customName)
+                self.ui.pushButtonSaveBand.setEnabled(True)
+                self.ui.pushButtonSaveBand.pressed.connect(self.saveBandCombinaison)
+                isSelection= True
+
+
+            if isinstance(item,QtWidgets.QGraphicsTextItem):
+                os.startfile(item.fileLocation)
+
+        if isSelection:
+            #self.ui.checkBoxShowZone.setCheckState(0) non nécessaire
+            for item in items:
+                if isinstance(item, QtWidgets.QGraphicsRectItem):
+                    if self.currentRect :
+                        self.scene.removeItem(self.currentRect)
+                    if self.pastRect :
+                        self.scene.addRect(self.pastRect)
+                    self.scene.removeItem(item)
+                    brush = QtGui.QBrush(QtCore.Qt.gray)
+                    a = item.boundingRect()
+                    newRect = QtCore.QRectF(a.x(),a.y(),a.width(), a.height())
+                    
+                    self.currentRect = self.scene.addRect(newRect,QtCore.Qt.gray,QtCore.Qt.gray)
+                    #self.currentRect.setBrush = brush
+                    self.pastRect = newRect
+                    self.ui.graphicsView.update()
+
+
+        
 
 
 class objSentinel : 
@@ -191,9 +289,12 @@ class threadAffichage(QtCore.QThread):
                 pixMap = QtGui.QPixmap().fromImage(image)
                 pixItem = QtWidgets.QGraphicsPixmapItem(pixMap)
                 pixItem.setOffset(self.currentX+10, self.currentY+10)
+                pixItem.setZValue(2)
                 self.pixmapItem = pixItem
+                self.pixmapItem.fileLocation = self.path2SAFE
 
                 self.shapeRect = QtCore.QRectF(self.currentX, self.currentY, 363, 383)
+                self.shapeRect.fileLocation = self.path2SAFE
                 textItem= QtWidgets.QGraphicsTextItem("")
                 textItem.setOpenExternalLinks(True)
                 textItem.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
@@ -205,7 +306,9 @@ class threadAffichage(QtCore.QThread):
                 font = QtGui.QFont()
                 font.setPointSize(14)
                 textItem.setFont(font)
+                textItem.setZValue(2)
                 self.hyperTextItem = textItem
+                self.hyperTextItem.fileLocation = self.path2SAFE
             except:
                 self.reject= True
             

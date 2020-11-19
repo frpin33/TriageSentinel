@@ -1,3 +1,8 @@
 /__pycache__/
 /.vscode/
 *.db
+/build/
+/dist/
+*.spec
+mergeIMGandTIF.py
+warpTIF.py

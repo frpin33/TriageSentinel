@@ -438,3 +438,108 @@ import subprocess
 #str_path = ET.parse(path_XML).getroot()[0][0][11][0][0][0].text[:-27]
 #full_path = os.path.join(path, str_path)
 
+'''
+def create_RGB_NIR_TIF(path) : 
+    pathGranule = os.path.join(path, 'GRANULE')
+    L1CPart = os.listdir(pathGranule)[0]
+    pathData = os.path.join(pathGranule, L1CPart, 'IMG_DATA')
+    listFileData = os.listdir(pathData)
+
+    for image in listFileData : 
+        if image.split('_')[-1] == "B02.jp2":
+            b02Path = os.path.join(pathData, image)
+        elif image.split('_')[-1] == "B03.jp2":
+            b03Path = os.path.join(pathData, image)
+        elif image.split('_')[-1] == "B04.jp2":
+            b04Path = os.path.join(pathData, image)
+        elif image.split('_')[-1] == "B08.jp2":
+            b08Path = os.path.join(pathData, image)
+        elif image.split('_')[-1] == "B12.jp2":
+            b12Path = os.path.join(pathData, image)
+            b12Name = image.split('.')[0]
+    
+    #driver = gdal.GetDriverByName('JPEG2000')
+    gb02 = gdal.Open(b02Path)
+    gb03 = gdal.Open(b03Path)
+    gb04 = gdal.Open(b04Path)
+    gb08 = gdal.Open(b08Path)
+    gb12 = gdal.Open(b12Path)# voir doc dataset possible de read as array avec b12 en 10m
+
+    ab02 = gb02.GetRasterBand(1).ReadAsArray()
+    ab03 = gb03.GetRasterBand(1).ReadAsArray()
+    ab04 = gb04.GetRasterBand(1).ReadAsArray()
+    ab08 = gb08.GetRasterBand(1).ReadAsArray() 
+
+    #create temp folder to store new jp2 lors du traitement complet
+    outName = b12Name + '_10m.jp2'
+    outPath = os.path.join(path, outName)
+    if not os.path.exists(outPath) :
+        gdal.Translate(outPath, gb12, format='JP2OpenJPEG', width=10980, height=10980, resampleAlg='bilinear', outputType=gdal.GDT_UInt16)
+    gb12_10m = gdal.Open(outPath)
+
+    ab12 = gb12_10m.GetRasterBand(1).ReadAsArray()
+
+    sizeX = gb04.RasterXSize
+    sizeY = gb04.RasterYSize
+    proj = gb04.GetProjection()
+    georef = gb04.GetGeoTransform()
+    src = osr.SpatialReference(proj)
+    dst = osr.SpatialReference()
+    dst.ImportFromEPSG(32198)
+    ct = osr.CoordinateTransformation(src,dst)
+    originLambert = ct.TransformPoint(georef[0], georef[3])
+    endX = georef[0] + georef[1]*sizeX
+    endY = georef[3] + georef[5]*sizeY
+    endLambert = ct.TransformPoint(endX, endY)
+    xpixelsize = (endLambert[0] - originLambert[0])/sizeX
+    ypixelsize = (endLambert[1] - originLambert[1])/sizeY
+    #newGeoTransform = (int(originLambert[0]), 10.001066477070744, 0, int(originLambert[1]), 0, -10)
+    
+    driver = gdal.GetDriverByName('GTiff')
+
+    rgbName = path.split('_')[-2] + '_' + path.split('_')[-5] + '_RGB_TEST.tif'
+    rbgPath = os.path.join(path, rgbName)
+
+    nirName = path.split('_')[-2] + '_' + path.split('_')[-5] + '_NIR.tif'
+    nirPath = os.path.join(path, nirName)
+
+    if not os.path.exists(rbgPath) :
+
+        fileout = driver.Create(rbgPath, ab04.shape[0], ab04.shape[1], 3, gdal.GDT_UInt16, ["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+        
+        fileout.GetRasterBand(1).WriteArray(ab04)
+        fileout.GetRasterBand(2).WriteArray(ab03)
+        fileout.GetRasterBand(3).WriteArray(ab02)
+        
+        
+        fileout.SetProjection(src.ExportToWkt())
+        fileout.SetSpatialRef(src)
+        fileout.SetGeoTransform(georef)
+        fileout.FlushCache()
+        fileout = None
+
+        #retData = gdal.Warp('b.tif', rbgPath, dstSRS='EPSG:32198')
+
+        
+        
+    
+    
+
+    if not os.path.exists(nirPath) :
+
+        fileout = driver.Create(nirPath, ab04.shape[0], ab04.shape[1], 3, gdal.GDT_UInt16, ["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+        
+        fileout.GetRasterBand(1).WriteArray(ab12)
+        fileout.GetRasterBand(2).WriteArray(ab08)
+        fileout.GetRasterBand(3).WriteArray(ab04)
+                
+        fileout.SetProjection(dst.ExportToWkt())
+        fileout.SetSpatialRef(dst)
+
+        #fileout.SetGeoTransform(newGeoTransform)
+        fileout.FlushCache()
+        fileout = None
+
+    print('here')
+
+'''

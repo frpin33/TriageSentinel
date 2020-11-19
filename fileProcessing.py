@@ -1,4 +1,4 @@
-import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal
+import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr
 import numpy as np
 
 
@@ -22,6 +22,7 @@ def getAllSAFEPath() :
                     listSAFEPath.append(SAFEPath)
     return listSAFEPath
 
+ 
 def getTileNumber() :
     dictResult = {}
     for year in possibleYears:  
@@ -36,10 +37,12 @@ def getTileNumber() :
     return dictResult
 
 
-def cloudProcess(delete=False) :
+def cloudProcess(delete=False, listNew=None) :
     tempDir = tempfile.mkdtemp()
-
-    listSAFEDirectory = getAllSAFEPath()
+    if listNew :
+        listSAFEDirectory = listNew
+    else :
+        listSAFEDirectory = getAllSAFEPath()
 
     for dirPath in listSAFEDirectory :
         try :
@@ -47,9 +50,7 @@ def cloudProcess(delete=False) :
             param = dirName.split('_')
             nameIMG = param[5] + '_' + param[2] + '.img'
             outIMG = os.path.join(dirPath, nameIMG)
-            if os.path.exists(outIMG) :
-                pass
-            else :
+            if not os.path.exists(outIMG) :
                 if delete : 
                     pathGranule = os.path.join(inSAFE, 'GRANULE')
                     L1CPart = os.listdir(pathGranule)[0]
@@ -68,6 +69,66 @@ def cloudProcess(delete=False) :
         except :
             pass
     shutil.rmtree(tempDir)
+
+def isNewSAFE():
+
+    listSAFEDirectory = getAllSAFEPath()
+    newSAFE = []
+    for dirPath in listSAFEDirectory :
+        dirName = os.path.basename(dirPath) 
+        param = dirName.split('_')
+        tileNum = param[5]  
+        infoFileName = tileNum + '.txt'
+        pathStoreFile = os.path.join(dataLocation, "Information", infoFileName)
+        listObj = pickle.load(open(pathStoreFile,'rb'))
+        for obj in listObj :
+            if obj.pathSAFE == dirPath :
+                break
+
+        else : 
+            newSAFE.append(dirPath)
+
+    return(newSAFE)
+
+def isIMGMissing():
+    listSAFEDirectory = getAllSAFEPath()
+    imgMissing = []
+    for dirPath in listSAFEDirectory :
+        dirName = os.path.basename(dirPath) 
+        param = dirName.split('_')
+        nameIMG = param[5] + '_' + param[2] + '.img'
+        outIMG = os.path.join(dirPath, nameIMG)
+        if not os.path.exists(outIMG) :
+            imgMissing.append(dirPath)
+    
+    return(imgMissing)
+
+
+def isTIFProcessDone():
+
+    listSAFEDirectory = getAllSAFEPath()
+    tifMissing = []
+    fileList = []
+    for dirPath in listSAFEDirectory :
+        dirName = os.path.basename(dirPath) 
+        param = dirName.split('_')
+        
+        nircut = param[5] + '_' + param[2] +'_NIR_Cut.tif'
+        fileList.append(os.path.join(dirPath, nircut)) 
+        
+        rgbcut = param[5] + '_' + param[2] +'_RGB_Cut.tif'
+        fileList.append(os.path.join(dirPath, rgbcut))
+        
+        nirtif = param[5] + '_' + param[2] +'_NIR.tif'
+        fileList.append(os.path.join(dirPath, nirtif))
+        
+        rgbtif = param[5] + '_' + param[2] +'_RGB.tif'
+        fileList.append(os.path.join(dirPath, rgbtif)) 
+        for item in fileList :
+            if not os.path.exists(item) :
+                tifMissing.append(dirPath)
+    
+    return(imgMissing)
 
 
 def mainProcess(delete=False) : 
@@ -102,17 +163,20 @@ def mainProcess(delete=False) :
                 if tile == tileNum:
                     safePath = os.path.join(yearPath, safe)
                     allSentinelObj.append(objSentinel(safePath,nameIMG))
-            
+        
         for obj in allSentinelObj :
             if listObjSentinel :
                 for safe in listObjSentinel :
                     if safe.pathSAFE == obj.pathSAFE :
+                        #newSentinelObj.append(obj)
+                        #if safe.totalClearPercent == 0 :    
+                        #    listObjSentinel.remove(safe)
                         break
                 else :
                     newSentinelObj.append(obj)
             else : 
                 newSentinelObj = allSentinelObj
-
+       
         if newSentinelObj : 
 
             for obj in newSentinelObj :
@@ -185,13 +249,10 @@ def mainProcess(delete=False) :
                     pTCloud = totalCloud/divFact
                     pTClear = totalClear/divFact
                     
-                    if pNull > pTClear + pTCloud :
+                    if pNull > pTClear + pTCloud  or pTCloud >= 0.5 :
                         obj.underPercent = False
-                    else :
-                        if pTCloud >= 0.5 : 
-                            obj.underPercent = False
-                        obj.clearPercent = countClear
-                        obj.totalClearPercent = pTClear
+                    obj.clearPercent = countClear
+                    obj.totalClearPercent = pTClear
                 
             completeListObjSentinel = listObjSentinel + newSentinelObj
                     
@@ -241,43 +302,6 @@ def mainProcess(delete=False) :
 
 
 
-def create_RGB_NIR_TIF(path) : 
-    pathGranule = os.path.join(path, 'GRANULE')
-    L1CPart = os.listdir(pathGranule)[0]
-    pathData = os.path.join(pathGranule, L1CPart, 'IMG_DATA')
-    listFileData = os.listdir(pathData)
-    jp2PathList = [] 
-    for image in listFileData : 
-        if image.split('_')[-1] == "B02.jp2":
-            b02Path = os.path.join(pathData, image)
-        elif image.split('_')[-1] == "B03.jp2":
-            b03Path = os.path.join(pathData, image)
-        elif image.split('_')[-1] == "B04.jp2":
-            b04Path = os.path.join(pathData, image)
-        elif image.split('_')[-1] == "B08.jp2":
-            b08Path = os.path.join(pathData, image)
-        elif image.split('_')[-1] == "B12.jp2":
-            b12Path = os.path.join(pathData, image)
-    
-    driver = gdal.GetDriverByName('JPEG2000')
-    gb02 = gdal.Open(b02Path)
-    gb03 = gdal.Open(b03Path)
-    gb04 = gdal.Open(b04Path)
-    gb08 = gdal.Open(b08Path)
-    gb12 = gdal.Open(b12Path)
-
-    ab02 = gb02.GetRasterBand(1).ReadAsArray()
-    ab03 = gb03.GetRasterBand(1).ReadAsArray()
-    ab04 = gb04.GetRasterBand(1).ReadAsArray()
-    ab08 = gb08.GetRasterBand(1).ReadAsArray()
-    ab12 = gb12.GetRasterBand(1).ReadAsArray()
-    
-    print('here')
-
-
-gdal.Translate()
-
-
 class objSentinel : 
     def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, underPercent=True) :
             self.pathSAFE = pathSAFE
@@ -287,5 +311,9 @@ class objSentinel :
             self.isTopFile = isTopFile
             self.underPercent = underPercent
 
-path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180514T155911_N0206_R097_T18TUT_20180514T194414.SAFE"
-create_RGB_NIR_TIF(path)
+
+
+#print(isNewSAFE())
+#print('\n')
+#print(isIMGMissing())
+
