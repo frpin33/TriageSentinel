@@ -1,6 +1,24 @@
-import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr, fileProcessing
-import numpy as np
+'''
+L'entièreté du code a été réalisé par Frédérick Pineault (frederick.pineault@mffp.gouv.qc.ca)
 
+Ce fichier contient 2 fonctions très similaire qui permettent la création de fichiers TIF
+via les différentes couches jp2 Sentinel
+Pour chaque tuile, 4 images tifs sont créées soit RGB, NIR et leur version découpé selon le masque
+
+Pour simplifier le code, la fonction createTIF pourrait faire appel à createTIFfromBand 
+pour éviter d'avoir beaucoup de ligne de code qui se répète 
+'''
+
+import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, fileProcessing, gdal, osr, projTxt
+import numpy as np
+#from osgeo import *
+
+#Récupère les bandes 2-3-4-8-12, la bande 12 doit être transformer vers une résolution de 10m
+#Prépare les noms d'enregistrement, récupère les données géospatiales
+#Création d'une image tif RGB et d'une image tif NIR que l'on transpose en Québec Lambert
+#Transformation du masque vers une résolution de 10m
+#Création des bandes RGB et NIR en fonction du masque, si le pixel est un nuage, il devient no-data
+#Tous fichiers nécessaire pour la création des TIF sont supprimés (ex. B12_10m)
 
 def createTIF(filePath) :
 
@@ -195,7 +213,7 @@ def createTIF(filePath) :
             if not os.path.exists(cutNIRPath) :
                 driver = gdal.GetDriverByName("GTiff")
 
-                fileout = driver.Create(cutRGBWarpPath,sizeX,sizeY, 3, gdal.GDT_UInt16, ["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+                fileout = driver.Create(cutNIRWarpPath,sizeX,sizeY, 3, gdal.GDT_UInt16, ["COMPRESS=LZW","PHOTOMETRIC=RGB"])
                 fileout.GetRasterBand(1).WriteArray(swirArray)
                 fileout.GetRasterBand(2).WriteArray(nirArray)
                 fileout.GetRasterBand(3).WriteArray(redArray)
@@ -216,15 +234,177 @@ def createTIF(filePath) :
         if os.path.exists(item) :
             os.remove(item)
 
+#Similaire à createTIF, permet la création d'un agencement de 3 bandes vers une image TIF
+#La résolution finale peut être de 10, 20 ou 60m. Il est possible de créer la version découpée
+def createTIFfromBand(band1, band2, band3, proj, pixelSize, savePath, cutPath='', imgPath=''): 
+    
+    try :
+        tempDir = tempfile.mkdtemp()
+        B01 = gdal.Open(band1)
+        B02 = gdal.Open(band2)
+        B03 = gdal.Open(band3)
+        
 
-def createTIFfromBand(band1, band2, band3): 
-    pass #trouver les dimensions 
-    #band_10m
-    #band_20m 
-    #band_60m 
-    #if band1 in band_20m 'B01' 
+        tempgeoref = B01.GetGeoTransform()
+        
+        if proj == '17' : src = osr.SpatialReference(projTxt.projUTM17N)
+        elif proj == '18' : src = osr.SpatialReference(projTxt.projUTM18N)
+        elif proj == '19' : src = osr.SpatialReference(projTxt.projUTM19N)
+        elif proj == '20' : src = osr.SpatialReference(projTxt.projUTM20N)
+        elif proj == '21' : src = osr.SpatialReference(projTxt.projUTM21N)
+        else : return False
 
 
+        dst = osr.SpatialReference()
+        dst.ImportFromWkt(projTxt.projQBLambert)
+        
+        toRemove = []
+
+        if pixelSize == '60 m' :
+            lenght = 1830
+            PPM = 60
+        elif pixelSize == '20 m' :
+            lenght = 5490
+            PPM = 20
+        elif pixelSize == '10 m' :
+            lenght = 10980
+            PPM = 10
+
+        georef = (tempgeoref[0], PPM, 0.0, tempgeoref[3], 0.0, -PPM)
+        
+        
+        if B01.RasterXSize != lenght :
+            newB01Path = os.path.join(tempDir,'resizeB01.tif')
+            b01XML = newB01Path + '.aux.xml'
+            path01XML = os.path.join(tempDir,b01XML)
+            toRemove.append(newB01Path)
+            toRemove.append(path01XML)
+            gdal.Translate(newB01Path, B01, format='JP2OpenJPEG', width=lenght, height=lenght, resampleAlg='cubic', outputType=gdal.GDT_UInt16)
+            B01 = gdal.Open(newB01Path)
+        
+        if B02.RasterXSize != lenght :
+            newB02Path = os.path.join(tempDir,'resizeB02.tif')
+            b02XML = newB02Path + '.aux.xml'
+            path02XML = os.path.join(tempDir, b02XML)
+            toRemove.append(newB02Path)
+            toRemove.append(path02XML)
+            gdal.Translate(newB02Path, B02, format='JP2OpenJPEG', width=lenght, height=lenght, resampleAlg='cubic', outputType=gdal.GDT_UInt16)
+            B02 = gdal.Open(newB02Path)
+        
+        if B03.RasterXSize != lenght :
+            newB03Path = os.path.join(tempDir,'resizeB03.tif')
+            b03XML = newB03Path + '.aux.xml'
+            path03XML = os.path.join(tempDir,b03XML)
+            toRemove.append(newB03Path)
+            toRemove.append(path03XML)
+            gdal.Translate(newB03Path, B03, format='JP2OpenJPEG', width=lenght, height=lenght, resampleAlg='cubic', outputType=gdal.GDT_UInt16)
+            B03 = gdal.Open(newB03Path)
+        
+
+        band1Array = B01.GetRasterBand(1).ReadAsArray()
+        band2Array = B02.GetRasterBand(1).ReadAsArray()
+        band3Array = B03.GetRasterBand(1).ReadAsArray()
+        
+        preWarpPath = os.path.join(tempDir,'preWarp.tif')
+        toRemove.append(preWarpPath)
+
+        driver = gdal.GetDriverByName("GTiff")
+        fileout = driver.Create(savePath,lenght,lenght, 3, gdal.GDT_UInt16, ["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+        fileout.GetRasterBand(1).WriteArray(band1Array)
+        fileout.GetRasterBand(2).WriteArray(band2Array)
+        fileout.GetRasterBand(3).WriteArray(band3Array)
+        fileout.GetRasterBand(1).SetNoDataValue(0)
+        fileout.GetRasterBand(2).SetNoDataValue(0)
+        fileout.GetRasterBand(3).SetNoDataValue(0)
+
+
+        fileout.SetProjection(src.ExportToWkt())
+        fileout.SetSpatialRef(src)
+        fileout.SetGeoTransform(georef)
+        fileout.FlushCache()
+        fileout = None
+
+        gdal.Warp(savePath, preWarpPath, dstSRS=dst, xRes=PPM, yRes=PPM, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+
+        if cutPath :
+
+            img = gdal.Open(imgPath)
+            preWarpCut = preWarpPath = os.path.join(tempDir,'preCutWarp.tif')
+            toRemove.append(preWarpCut)
+
+            if pixelSize == '10 m' or pixelSize == '60 m' :
+                newImageSize = preWarpPath = os.path.join(tempDir,'imgResize.img')
+                resizeXML = preWarpPath = os.path.join(tempDir,'imgResize.img.aux.xml')
+                toRemove.append(newImageSize)
+                toRemove.append(resizeXML)
+                imgResize = gdal.Translate(newImageSize, img, width=lenght, height=lenght, outputType=gdal.GDT_Byte)
+                imgArray = imgResize.GetRasterBand(1).ReadAsArray()
+            
+            else :
+                imgResize = None
+                imgArray = img.GetRasterBand(1).ReadAsArray()
+
+            new1Array  = np.zeros((lenght,lenght),dtype=np.uint16)
+            new2Array  = np.zeros((lenght,lenght),dtype=np.uint16)
+            new3Array  = np.zeros((lenght,lenght),dtype=np.uint16)
+
+            for ix in range(lenght):
+                for iy in range(lenght):
+                    val = int(imgArray[ix,iy])
+                    if val == 0 or val == 2 or val == 3: 
+                        new1Array[ix,iy] = 0
+                        new2Array[ix,iy] = 0 
+                        new3Array[ix,iy] = 0
+
+                    elif val == 1 or val == 4 or val == 5 :
+                        new1Array[ix,iy] = band1Array[ix,iy]
+                        new2Array[ix,iy] = band2Array[ix,iy]
+                        new3Array[ix,iy] = band3Array[ix,iy]
+        
+            fileout = driver.Create(preWarpCut,lenght,lenght, 3, gdal.GDT_UInt16, ["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+            fileout.GetRasterBand(1).WriteArray(new1Array)
+            fileout.GetRasterBand(2).WriteArray(new2Array)
+            fileout.GetRasterBand(3).WriteArray(new3Array)
+            fileout.GetRasterBand(1).SetNoDataValue(0)
+            fileout.GetRasterBand(2).SetNoDataValue(0)
+            fileout.GetRasterBand(3).SetNoDataValue(0)
+
+
+            fileout.SetProjection(src.ExportToWkt())
+            fileout.SetSpatialRef(src)
+            fileout.SetGeoTransform(georef)
+            fileout.FlushCache()
+            fileout = None
+
+            gdal.Warp(cutPath, preWarpCut, dstSRS=dst, xRes=PPM, yRes=PPM, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+            
+        
+        B01 = B02 = B03 = imgResize = None
+        for item in toRemove: 
+            if os.path.exists(item) :
+                os.remove(item)
+        
+        shutil.rmtree(tempDir)
+        return True
+
+    except :    
+        B01 = B02 = B03 = imgResize = None
+        for item in toRemove: 
+            if os.path.exists(item) :
+                os.remove(item)
+        
+        shutil.rmtree(tempDir)
+        return False
+
+#U:\Mosaique_Sentinel\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE
+
+#b1 = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\GRANULE\\L1C_T18TVT_A018284_20200905T160134\\IMG_DATA\\T18TVT_20200905T155829_B01.jp2'
+#b2 = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\GRANULE\\L1C_T18TVT_A018284_20200905T160134\\IMG_DATA\\T18TVT_20200905T155829_B04.jp2'
+#b3 = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\GRANULE\\L1C_T18TVT_A018284_20200905T160134\\IMG_DATA\\T18TVT_20200905T155829_B8A.jp2'
+#sPath = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\norm.tif'
+#cPath = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\cut.tif'
+#img = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\T18TVT_20200905T155829.img'
+#createTIFfromBand(b1, b2, b3, '60 m', sPath, cPath, img)
 '''
 listSAFEDirectory = fileProcessing.getAllSAFEPath()
 
@@ -245,12 +425,12 @@ elif sys.argv[1] == '3' :
     listSafe = p3
 elif sys.argv[1] == '4' :
     listSafe = p4
-
+    
 for path in listSafe :
     try :
         createTIF(path)
     except :
-        pass'''
-
-path = 'U:/Mosaique_Sentinel/S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE - Copie'
-createTIF(path)
+        pass
+'''
+#path = 'U:/Mosaique_Sentinel/S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE - Copie'
+#createTIF(path)

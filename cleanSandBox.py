@@ -12,7 +12,22 @@ class objSentinel :
 
 tilePath = "I:/TeleDiff/Commun/a-Images-Satellites/SENTINEL/Information/T19UEP.txt"
 
-listObj = pickle.load(open(tilePath,'rb'))
-print('a')
+#listObj = pickle.load(open(tilePath,'rb'))
 
+src = osr.SpatialReference()
+src.ImportFromEPSG(32198)
+c = src.ExportToXML()
+src = osr.SpatialReference()
+src.ImportFromEPSG(32618)
+d = src.ExportToXML()
+e = [d,c]
+#print(c)
+pickle.dump(e,open("test.txt","wb"))
+'''print(src.ExportToWkt())
+src.ImportFromEPSG(32620)
+print(src.ExportToWkt())
+src.ImportFromEPSG(32621)
+print(src.ExportToWkt())
+src.ImportFromEPSG(32198)
+print(src.ExportToWkt())'''
 

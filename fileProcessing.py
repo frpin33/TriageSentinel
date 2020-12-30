@@ -1,4 +1,19 @@
-import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr
+'''
+L'entièreté du code a été réalisé par Frédérick Pineault (frederick.pineault@mffp.gouv.qc.ca)
+
+Ce fichier plusieurs fonctions essentielles pour la gestion des dossiers SAFE sur
+le serveur F1271I (\\SEF1271A) du MFFP
+
+Le fichier est aussi utiliser par le planificateur de tâche Windows pour faire
+une analyse journalière des dossiers présents sur le serveur
+L'analyse permet de : 
+    -Créer les masques de nuages manquants dans les dossiers du serveur 
+    -Trier les listes d'objets par numéro selon le pourcentage de nuage 
+    -Créer un agencement RGB et NIR ainsi qu'un découpage selon le masque de nuage pour chaque tuile
+
+'''
+
+import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr, tifCreation
 import numpy as np
 
 
@@ -10,6 +25,8 @@ keepTopValue = 5
 def unzipFile() :
     pass
 
+#Récupère tous les fichiers SAFE disponible sur le serveur
+#Retourne la liste remplit
 def getAllSAFEPath() :
     listSAFEPath = []
     for year in possibleYears:
@@ -22,7 +39,9 @@ def getAllSAFEPath() :
                     listSAFEPath.append(SAFEPath)
     return listSAFEPath
 
- 
+#Récupère les numéros de tuiles
+#Le nombre de tuile pour chaque numéro est compté 
+#Retourne un dictionnaire avec le numéro et le compte 
 def getTileNumber() :
     dictResult = {}
     for year in possibleYears:  
@@ -36,7 +55,9 @@ def getTileNumber() :
                 dictResult[num] = dictResult[num] +1 
     return dictResult
 
-
+#Calcul le masque de nuage avec l'outil fmask avec un résolution de 20m par pixel
+#pour tous les fichiers SAFE ou en fonction de l'argument listNew
+#Permet d'actualiser la liste complète pour que chaque tuile contienne un masque
 def cloudProcess(delete=False, listNew=None) :
     tempDir = tempfile.mkdtemp()
     if listNew :
@@ -70,8 +91,9 @@ def cloudProcess(delete=False, listNew=None) :
             pass
     shutil.rmtree(tempDir)
 
+#Permet de déterminer quelles tuiles présentes dans les dossiers du serveur 
+#qui n'ont pas encore été ajoutées dans les fichiers textes
 def isNewSAFE():
-
     listSAFEDirectory = getAllSAFEPath()
     newSAFE = []
     for dirPath in listSAFEDirectory :
@@ -90,6 +112,7 @@ def isNewSAFE():
 
     return(newSAFE)
 
+#Permet de déterminer quelles tuiles n'ont pas de masque de nuage
 def isIMGMissing():
     listSAFEDirectory = getAllSAFEPath()
     imgMissing = []
@@ -103,13 +126,15 @@ def isIMGMissing():
     
     return(imgMissing)
 
-
+#Permet de déterminer quelles tuiles n'ont pas été agencées et découpées
+#Si une tuile n'a pas de masque et donc pas de TIF découpé, elle sera ajouté à la liste
 def isTIFProcessDone():
 
     listSAFEDirectory = getAllSAFEPath()
     tifMissing = []
     fileList = []
     for dirPath in listSAFEDirectory :
+        fileList = []
         dirName = os.path.basename(dirPath) 
         param = dirName.split('_')
         
@@ -127,10 +152,19 @@ def isTIFProcessDone():
         for item in fileList :
             if not os.path.exists(item) :
                 tifMissing.append(dirPath)
+                break
     
-    return(imgMissing)
+    return(tifMissing)
 
-
+#Gestion des fichiers textes 
+#Récupère une liste complète de tuiles pour chaque numéro
+#Pour chaque liste, le même traitement est réalisé
+#Si le fichier SAFE n'est pas dans son fichier texte respectif, son masque doit être analyser 
+#Le masque est analysé sur 16 zones de même taille pour déterminer le pourcentage sans nuage
+#Combine la liste nouvellement traitée et les anciens fichiers
+#Trie les tuiles en fonction du plus haut pourcentage sans nuage
+#Pour chaque zone, les 5(keepTopValue) tuiles aillant le plus haut pourcentage sont identifiés
+#Écriture de la nouvelle liste dans le fichier texte
 def mainProcess(delete=False) : 
     
     listTileNB = [] 
@@ -168,9 +202,9 @@ def mainProcess(delete=False) :
             if listObjSentinel :
                 for safe in listObjSentinel :
                     if safe.pathSAFE == obj.pathSAFE :
-                        #newSentinelObj.append(obj)
-                        #if safe.totalClearPercent == 0 :    
-                        #    listObjSentinel.remove(safe)
+                        if safe.totalClearPercent == 0 : 
+                            newSentinelObj.append(obj)   
+                            listObjSentinel.remove(safe)
                         break
                 else :
                     newSentinelObj.append(obj)
@@ -301,7 +335,7 @@ def mainProcess(delete=False) :
             pickle.dump( completeListObjSentinel ,open(pathStoreFile,"wb"))
 
 
-
+#Class qui contient les informations enregistrer pour chaque tuile
 class objSentinel : 
     def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, underPercent=True) :
             self.pathSAFE = pathSAFE
@@ -312,8 +346,19 @@ class objSentinel :
             self.underPercent = underPercent
 
 
+if __name__ == "__main__":
+    
+    try : cloudProcess()
+    except : pass
 
-#print(isNewSAFE())
-#print('\n')
-#print(isIMGMissing())
+    try : mainProcess()
+    except : pass
+
+    toDo = isTIFProcessDone()
+
+    for item in toDo :
+        try : tifCreation.createTIF(item)
+        except : pass
+
+
 

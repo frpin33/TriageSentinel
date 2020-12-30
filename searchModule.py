@@ -1,8 +1,30 @@
+'''
+L'entièreté du code a été réalisé par Frédérick Pineault (frederick.pineault@mffp.gouv.qc.ca)
+
+Ce fichier contient une classe de type QMainWindow qui permet la recherche de tuiles Sentinel en fonction
+du numéro de tuile et des dates sélectionnées
+
+Il est possible de faire une recherche en fonction de certaines zones spécifiques pour priorisés certains résultats
+Il est possible d'enregistrer un assemblage de bande sur une tuile spécifique. L'utilisateur doit choisir les
+bandes qu'il désire manuellement.
+
+L'application peut seulement fonctionner si l'ordinateur a accès au serveur F1271I (\\SEF1271A) du MFFP
+Pour chaque numéro de tuile, un document txt est utilisé pour lire l'information. Pour chaque tuile, un objet de 
+la classe objSentinel est enregistré avec la librairie pickle. Il est donc seulement possible de lire le fichier texte
+avec un script Python
+
+Problème avec T19UDT, T18UXB -- Réglé -- Dossier vide (y a-t-il une raison)
+Il serait intéressant de trouver si d'autres ont des problèmes (loop on each TXT)
+3 fichiers ont des dossiers 10-20-60m plutôt que la norme, donc il ne fonctionne pas
+2016 toujours pas programmé
+Empêcher de crash avec un try si il n'est pas possible d'ouvrir TCI et/ou os.listDir crash
+'''
+
 from PyQt5 import QtCore, QtGui, QtWidgets
-import sys, gdal, qimage2ndarray, os, csv, pickle
+import sys, gdal, qimage2ndarray, os, csv, pickle, osr
 import numpy as np
 from PIL import Image
-import ressource
+import ressource, tifCreation, fileProcessing
 from ui_menuRecherche import Ui_searchMenu
 #from fileProcessing import dataLocation
 dataLocation = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
@@ -21,13 +43,16 @@ class resultWindow(QtWidgets.QMainWindow):
         self.ui.graphicsView.setScene(self.scene)
         self.ui.pushButtonLaunch.pressed.connect(self.startSearch)
         self.ui.groupBoxDate.clicked.connect(self.groupDateChange)
+        self.ui.pushButtonSaveBand.clicked.connect(self.saveBandCombinaison)
+        self.ui.pushButtonRefresh.clicked.connect(self.refreshSAFEStoreFile)
         self.currentRect = None
         self.pastRect = None
         self.lineItemList = []
 
-        
-        ####add connect ici
 
+        ####add connect ici
+    #Active/Désactive les QDateEdit selon la checkbox
+    #Les QDateEdit permettent de sélectionner des dates spécifique pour la recherche de tuile
     def groupDateChange(self, val):
         self.ui.label.setEnabled(True)
         self.ui.label_2.setEnabled(True)
@@ -38,7 +63,7 @@ class resultWindow(QtWidgets.QMainWindow):
             self.ui.endDateEdit.setEnabled(True)
             self.ui.startDateEdit.setEnabled(True)
 
-    
+    #Détermine les zones d'intérêts en fonction du format standard (virgule entre les zones)
     def getZoneFilter(self):
         zoneSTR = self.ui.lineEditZone.text()
         splitZone = zoneSTR.split(',')
@@ -62,10 +87,15 @@ class resultWindow(QtWidgets.QMainWindow):
         return listIntZone
 
 
-    
+    #Lance le processus de recherche
+    #Trouve le fichier texte correspondant à la tuile demandée et récupère la liste des tuiles
+    #Si des dates sont spécifiées, la liste est parcourue pour retirer les tuiles non concernées
+    #Si des zones spécifiques sont demandées, la liste est classée en fonction des zones importantes
+    #Lancement du thread pour l'affichage de la première tuile à la position initiale
     def startSearch(self) :
         self.scene = QtWidgets.QGraphicsScene()
-        self.ui.graphicsView.mousePressEvent = QtWidgets.QGraphicsView.mousePressEvent
+        self.currentRect = None
+        self.ui.graphicsView.mousePressEvent = self.clicOnQraphicsView
         try : self.ui.checkBoxShowZone.stateChanged.disconnect()
         except : pass
         self.ui.graphicsView.setScene(self.scene)
@@ -128,6 +158,9 @@ class resultWindow(QtWidgets.QMainWindow):
             strResult = 'Aucune tuile de la base de donnée possède le numéro demandé' 
             self.ui.plainTextEdit.setPlainText(strResult)
     
+    #Ajoute les objets de l'image en cours sur la scene 
+    #Détermine la position de la prochaine image 
+    #Si il reste des images à afficher, le thread d'affichage est relancée avec la position détemrinée
     def addPictureOnFrame(self):
         
         self.currentListIndex += 1
@@ -156,11 +189,11 @@ class resultWindow(QtWidgets.QMainWindow):
         except:
             strResult = 'Chargement terminé'
             self.ui.plainTextEdit.setPlainText(strResult)
-            self.ui.graphicsView.mousePressEvent = self.clicOnQraphicsView
             if self.ui.checkBoxShowZone.isChecked() :
                 self.newCommandZoneLine(2)
             self.ui.checkBoxShowZone.stateChanged.connect(self.newCommandZoneLine)  
 
+    #Trace des lignes pour chacune des images pour permettre l'identification des 16 zones
     def newCommandZoneLine(self, state):
 
         if state == 2 : 
@@ -185,16 +218,103 @@ class resultWindow(QtWidgets.QMainWindow):
             if self.lineItemList :
                 for line in self.lineItemList:
                     self.scene.removeItem(line)
-        
-    def saveBandCombinaison(self) : #Fonction d'écrire des tifs à faire dans tifCreation Check version cut
-        cutVersion = self.ui.checkBoxCutVersion.isChecked()
 
-        self.customName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand.tif'
-        self.customPath = os.path.join(item.fileLocation, self.customName)
-        self.customCutName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand_Cut.tif'
-        self.customCutPath = os.path.join(item.fileLocation, self.customCutName)
+    #Permet de rafraîchir la liste des tuiles disponibles sur le serveur
+    def refreshSAFEStoreFile(self) :
+        fileProcessing.mainProcess()
 
+    #Récupère le nom pour chacune des bandes a utiliés pour l'enregistrement
+    #Prépare les noms des fichiers à enregistrer
+    #Vérifie que  les images JP2 existent
+    #Lance le thread d'enregistrement pour la nouvelle image
+    def saveBandCombinaison(self) : 
 
+        try :
+            self.cutVersion = self.ui.checkBoxCutVersion.isChecked()
+            nameBand1 = self.ui.comboBoxBand1.currentText() + '.jp2'
+            nameBand2 = self.ui.comboBoxBand2.currentText() + '.jp2'
+            nameBand3 = self.ui.comboBoxBand3.currentText() + '.jp2'
+            pixelSize = self.ui.comboBoxPixelSize.currentText()
+
+            saveName = self.ui.lineEditSaveTile.text()
+            if saveName :
+                newSaveName = saveName +'.tif'
+                cutSaveName = saveName + '_Cut.tif'
+
+            else : 
+                newSaveName = self.customName +'.tif'
+                cutSaveName = self.customName + '_Cut.tif'
+
+            newFullPath = os.path.join(self.customPath, newSaveName)
+            if os.path.exists(newFullPath):os.remove(newFullPath)
+            
+            if self.cutVersion : 
+                cutFullPath = os.path.join(self.customPath, cutSaveName)
+                imgPath = self.imgSelectPath 
+                if os.path.exists(cutFullPath) :os.remove(cutFullPath)
+            else : 
+                cutFullPath = ''
+                imgPath = ''
+
+            pathGranule = os.path.join(self.customPath, 'GRANULE')
+            L1CPart = os.listdir(pathGranule)[0]
+            pathData = os.path.join(pathGranule, L1CPart, 'IMG_DATA')
+            listFileData = os.listdir(pathData)
+            
+            band1 = ''
+            band2 = ''
+            band3 = ''
+
+            for image in listFileData : 
+
+                if image.split('_')[-1] == nameBand1:
+                    band1 = os.path.join(pathData, image)
+                
+                if image.split('_')[-1] == nameBand2:
+                    band2 = os.path.join(pathData, image)
+
+                if image.split('_')[-1] == nameBand3:
+                    band3 = os.path.join(pathData, image)
+
+            if band1 and band2 and band3 :
+                
+                currentNumber = self.ui.lineEditNumero.text()
+                proj = currentNumber[1:3]
+
+                self.saveThread = threadSaveCustomBand(band1,band2,band3, proj,pixelSize, newFullPath, cutFullPath, imgPath)
+                self.saveThread.finished.connect(self.checkSaveResult)
+                strResult = 'Début de l\'enregistrement'
+                self.ui.plainTextEdit.setPlainText(strResult)
+                self.ui.pushButtonSaveBand.setEnabled(False)
+                self.saveThread.start()
+        except : 
+            strResult = 'Enregistrement impossible, il n\'est pas possible de récupérer toutes les bandes demandées'
+            self.ui.plainTextEdit.setPlainText(strResult)
+
+    #Affiche à l'utilisateur comment l'enregistrement s'est déroulé
+    def checkSaveResult(self) :
+        if self.saveThread.result :
+            if self.isCutPossible and self.cutVersion :
+                strResult = 'Enregistrement terminé pour les 2 images'
+                self.ui.plainTextEdit.setPlainText(strResult)
+            elif self.cutVersion and not self.isCutPossible :
+                strResult = 'Enregistrement seulement possible pour l\'image sans découpage, le masque n\'existe pas.'
+                self.ui.plainTextEdit.setPlainText(strResult)
+            else :
+                strResult = 'Enregistrement terminé'
+                self.ui.plainTextEdit.setPlainText(strResult)
+            
+        else :
+            strResult = 'Échec de l\'enregistrement'
+            self.ui.plainTextEdit.setPlainText(strResult)
+        self.ui.pushButtonSaveBand.setEnabled(True)
+
+    #Action activé par un click sur le QGraphicsView
+    #Détermine sur quel objet le click a eu lieu
+    #Si le click est sur une image, le chemin est recupéré pour l'enregistrement
+    #L'image devient la tuile sélectionnée dans l'application
+    #Si le click est sur le nom de l'image, le dossier de l'image s'ouvre dans l'explorateur Windows
+    #Change la couleur du rectangle pour souligner la sélection en cours
     def clicOnQraphicsView(self, mouseEvent) : 
         mousePosition = mouseEvent.pos()
         items = self.ui.graphicsView.items(mousePosition)
@@ -205,13 +325,21 @@ class resultWindow(QtWidgets.QMainWindow):
                 paramOfName = dirName.split('_')
                 nameOfPicture = paramOfName[-5]
 
-                customName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand.tif'
-                self.customPath = os.path.join(item.fileLocation, customName)
+                self.customName = paramOfName[-2] + '_' + paramOfName[-5] + '_customBand'
+                imgName = paramOfName[-2] + '_' + paramOfName[-5] + '.img'
+                self.customPath = item.fileLocation
+
+                imgPath = os.path.join(self.customPath, imgName)
+                if os.path.exists(imgPath) :
+                    self.isCutPossible = True
+                    self.imgSelectPath = imgPath
+                else :
+                    self.isCutPossible = False
+                    self.imgSelectPath = ''
 
                 self.ui.lineEditSelectTile.setText(nameOfPicture)
-                self.ui.lineEditSaveTile.setText(customName)
+                self.ui.lineEditSaveTile.setText(self.customName)
                 self.ui.pushButtonSaveBand.setEnabled(True)
-                self.ui.pushButtonSaveBand.pressed.connect(self.saveBandCombinaison)
                 isSelection= True
 
 
@@ -222,24 +350,24 @@ class resultWindow(QtWidgets.QMainWindow):
             #self.ui.checkBoxShowZone.setCheckState(0) non nécessaire
             for item in items:
                 if isinstance(item, QtWidgets.QGraphicsRectItem):
-                    if self.currentRect :
-                        self.scene.removeItem(self.currentRect)
+                    try : 
+                        if self.currentRect :
+                            self.scene.removeItem(self.currentRect)
+                        self.scene.removeItem(item)
+                    except : pass
+
                     if self.pastRect :
                         self.scene.addRect(self.pastRect)
-                    self.scene.removeItem(item)
+                    
                     brush = QtGui.QBrush(QtCore.Qt.gray)
                     a = item.boundingRect()
                     newRect = QtCore.QRectF(a.x(),a.y(),a.width(), a.height())
                     
                     self.currentRect = self.scene.addRect(newRect,QtCore.Qt.gray,QtCore.Qt.gray)
-                    #self.currentRect.setBrush = brush
                     self.pastRect = newRect
                     self.ui.graphicsView.update()
 
-
-        
-
-
+#Class qui contient les informations enregistrer pour chaque tuile
 class objSentinel : 
     def __init__(self, pathSAFE='', nameIMG='', totalClearPercent=0.0, clearPercent=[0]*16, isTopFile=[False]*16, under60=True) :
         self.pathSAFE = pathSAFE
@@ -249,7 +377,8 @@ class objSentinel :
         self.isTopFile = isTopFile
         self.under60 = under60
 
-
+#Thread qui prépare les objets qui seront affichés sur le QGraphicsViews pour chaque tuile
+#L'application n'est donc pas ralenti par le chargement de l'image en mémoire
 class threadAffichage(QtCore.QThread):
     def __init__(self, path2SAFE, currentX, currentY) :
         QtCore.QThread.__init__(self)
@@ -312,9 +441,27 @@ class threadAffichage(QtCore.QThread):
             except:
                 self.reject= True
             
+#Thread qui lance l'enregistrement de l'image personnalisée
+class threadSaveCustomBand(QtCore.QThread):
+    def __init__(self, band1, band2, band3, proj,pixelSize, savePath, cutPath='', imgPath='') :
+        QtCore.QThread.__init__(self)
+        self.band1 = band1
+        self.band2 = band2
+        self.band3 = band3
+        self.proj =proj
+        self.pixelSize = pixelSize
+        self.savePath = savePath
+        self.cutPath = cutPath
+        self.imgPath = imgPath
+        self.result = False
+    
+    def run(self):
+        self.result = tifCreation.createTIFfromBand(self.band1, self.band2, self.band3, self.proj, self.pixelSize, self.savePath, self.cutPath, self.imgPath)
 
 
-app = QtWidgets.QApplication(sys.argv)
-showResultWindow = resultWindow()
-showResultWindow.show()
-sys.exit(app.exec_())
+if __name__ == "__main__":
+     
+    app = QtWidgets.QApplication(sys.argv)
+    showResultWindow = resultWindow()
+    showResultWindow.show()
+    sys.exit(app.exec_())

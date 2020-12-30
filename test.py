@@ -23,7 +23,7 @@ class objSentinel :
             self.clearPercent = clearPercent
             self.isTopFile = isTopFile
             self.underPercent = underPercent
-
+'''
 #path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180514T155911_N0206_R097_T18TUT_20180514T194414.SAFE/GRANULE/L1C_T18TUT_A015109_20180514T160535/IMG_DATA"
 path = "U:/Mosaique_Sentinel/Sentinel_T18TUT/S2A_MSIL1C_20180613T155901_N0206_R097_T18TUT_20180613T194300.SAFE/GRANULE/L1C_T18TUT_A015538_20180613T155924/IMG_DATA"
 outPath = "U:/Mosaique_Sentinel/Sentinel_T18TUT/Out"
@@ -79,7 +79,7 @@ for item in listDir :
 
         pickle.dump(listObjSentinel ,open(newpath,"wb"))
 
-
+'''
 
 
 
@@ -275,19 +275,19 @@ if z[0] == 'S2B' or z[0] == 'S2A' :
 
 #import shutil
 #shutil.rmtree(path)
-"""
-class objSentinel : 
-    def __init__(self, pathSAFE='', pathIMG='', cloudPercent=0, clearPercent=0) :
-            self.pathSAFE = pathSAFE
-            self.pathIMG = pathIMG
-            self.cloudPercent = cloudPercent
-            self.clearPercent = clearPercent
+#T19UDT, T18UXB 
 
-import pickle
+#delete  = I:\TeleDiff\Commun\a-Images-Satellites\SENTINEL\2020\S2B_MSIL2A_20200714T154809_N0214_R054_T19UDT_20200714T201738.SAFE
+#delete = I:\TeleDiff\Commun\a-Images-Satellites\SENTINEL\2020\S2B_MSIL2A_20200714T154809_N0214_R054_T18UXB_20200714T213253.SAFE
+
+import fileProcessing
+fileProcessing.cloudProcess()
 keepTopValue = 5
-path = "C:/Users/Frederick/Desktop/Work_Git/mosaique/Sentinel_T18TUT/2018/Information/T18TUT.txt"
+path = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\Information/T18UXB.txt"
 listObjSentinel = pickle.load(open(path,'rb'))
-listObjSentinel = []
+newList = listObjSentinel[:-1]
+a=0
+"""listObjSentinel = []
 
 topE = [0,0]
 topR =[topE]*keepTopValue

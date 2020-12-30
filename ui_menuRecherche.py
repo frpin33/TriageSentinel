@@ -169,6 +169,16 @@ class Ui_searchMenu(object):
         self.checkBoxCutVersion = QtWidgets.QCheckBox(searchMenu)
         self.checkBoxCutVersion.setGeometry(QtCore.QRect(70, 590, 181, 20))
         self.checkBoxCutVersion.setObjectName("checkBoxCutVersion")
+        self.comboBoxPixelSize = QtWidgets.QComboBox(searchMenu)
+        self.comboBoxPixelSize.setGeometry(QtCore.QRect(10, 595, 51, 22))
+        self.comboBoxPixelSize.setObjectName("comboBoxPixelSize")
+        self.comboBoxPixelSize.addItem("")
+        self.comboBoxPixelSize.addItem("")
+        self.comboBoxPixelSize.addItem("")
+        self.comboBoxPixelSize.setCurrentIndex(1)
+        self.pushButtonRefresh = QtWidgets.QPushButton(searchMenu)
+        self.pushButtonRefresh.setGeometry(QtCore.QRect(134, 45, 131, 23))
+        self.pushButtonRefresh.setObjectName("pushButtonRefresh")
 
         self.retranslateUi(searchMenu)
         QtCore.QMetaObject.connectSlotsByName(searchMenu)
@@ -231,6 +241,10 @@ class Ui_searchMenu(object):
         self.label_11.setText(_translate("searchMenu", "Nom du fichier sauvegardé"))
         self.pushButtonSaveBand.setText(_translate("searchMenu", "Sauvegarder"))
         self.checkBoxCutVersion.setText(_translate("searchMenu", "Sauvegarder la version découpée"))
+        self.comboBoxPixelSize.setItemText(0, _translate("searchMenu", "10 m"))
+        self.comboBoxPixelSize.setItemText(1, _translate("searchMenu", "20 m"))
+        self.comboBoxPixelSize.setItemText(2, _translate("searchMenu", "60 m"))
+        self.pushButtonRefresh.setText(_translate("searchMenu", "Rafraîchir les données"))
 
 
 class upperLineEdit(QtWidgets.QLineEdit):
