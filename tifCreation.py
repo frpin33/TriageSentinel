@@ -9,7 +9,8 @@ Pour simplifier le code, la fonction createTIF pourrait faire appel à createTIF
 pour éviter d'avoir beaucoup de ligne de code qui se répète 
 '''
 
-import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, fileProcessing, gdal, osr, projTxt
+import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr, projTxt
+#from fileProcessing import getAllSAFEPath
 import numpy as np
 #from osgeo import *
 
@@ -23,6 +24,10 @@ import numpy as np
 def createTIF(filePath) :
 
     toRemove = []
+
+    tab = []
+    for i in range(1,9):
+        tab.append(2**i)
 
     pathGranule = os.path.join(filePath, 'GRANULE')
     L1CPart = os.listdir(pathGranule)[0]
@@ -108,7 +113,10 @@ def createTIF(filePath) :
         fileout.FlushCache()
         fileout = None
 
-        gdal.Warp(rbgPath, rbgWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+        ret = gdal.Warp(rbgPath, rbgWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+        ret.BuildOverviews('AVERAGE', tab)
+        ret.FlushCache()
+        ret = None
 
     if not os.path.exists(nirPath) :
 
@@ -125,8 +133,11 @@ def createTIF(filePath) :
         fileout.FlushCache()
         fileout = None
 
-        gdal.Warp(nirPath, nirWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
-        
+        ret = gdal.Warp(nirPath, nirWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+        ret.BuildOverviews('AVERAGE', tab)
+        ret.FlushCache()
+        ret = None
+
     imgName = paramOfName[-2] + '_' + paramOfName[-5] + '.img'
     imgPath = os.path.join(filePath, imgName)
     
@@ -154,7 +165,7 @@ def createTIF(filePath) :
         cutRGBPath = os.path.join(filePath, cutRGBName)
 
         cutNIRWarpName = paramOfName[-2] + '_' + paramOfName[-5] + '_nircutwarp.tif'
-        cutNIRWarpPath = os.path.join(filePath, cutRGBWarpName)
+        cutNIRWarpPath = os.path.join(filePath, cutNIRWarpName)
 
         cutNIRName = paramOfName[-2] + '_' + paramOfName[-5] + '_NIR_Cut.tif'
         cutNIRPath = os.path.join(filePath, cutNIRName)
@@ -208,8 +219,10 @@ def createTIF(filePath) :
                 fileout.FlushCache()
                 fileout = None
 
-                gdal.Warp(cutRGBPath, cutRGBWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
-                
+                ret = gdal.Warp(cutRGBPath, cutRGBWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+                ret.BuildOverviews('AVERAGE', tab)
+                ret.FlushCache()
+                ret = None
             if not os.path.exists(cutNIRPath) :
                 driver = gdal.GetDriverByName("GTiff")
 
@@ -227,8 +240,11 @@ def createTIF(filePath) :
                 fileout.FlushCache()
                 fileout = None
 
-                gdal.Warp(cutNIRPath, cutNIRWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
-                
+                ret = gdal.Warp(cutNIRPath, cutNIRWarpPath, dstSRS=dst, xRes=10, yRes=10, targetAlignedPixels=True, dstNodata=0, resampleAlg='cubic', creationOptions=["COMPRESS=LZW","PHOTOMETRIC=RGB"])
+                ret.BuildOverviews('AVERAGE', tab)
+                ret.FlushCache()
+                ret = None
+
     gb12_10m = None
     for item in toRemove: 
         if os.path.exists(item) :
@@ -396,6 +412,114 @@ def createTIFfromBand(band1, band2, band3, proj, pixelSize, savePath, cutPath=''
         shutil.rmtree(tempDir)
         return False
 
+def createNBR_NDVI(pathNIR, pathNBR='', pathNDVI=''):
+
+    nir = gdal.Open(pathNIR)
+    swirBand = nir.GetRasterBand(1)
+    nirBand = nir.GetRasterBand(2)
+    redBand = nir.GetRasterBand(3)
+    sizeX = nir.RasterXSize
+    sizeY = nir.RasterYSize
+    proj = nir.GetProjection()
+    georef = nir.GetGeoTransform()
+    src = osr.SpatialReference(proj)
+
+    tab = []
+    for i in range(1,9):
+        tab.append(2**i)
+
+    arrSwir = swirBand.ReadAsArray()
+    arrSwir.astype(float)[arrSwir ==0] = np.nan
+    arrNir = nirBand.ReadAsArray()
+    arrNir.astype(float)[arrNir ==0] = np.nan
+    arrRed = redBand.ReadAsArray()
+    arrRed.astype(float)[arrRed ==0] = np.nan
+
+    if pathNBR :
+
+        topNBR = (arrNir - arrSwir).astype(float) 
+        botNBR = (arrNir + arrSwir).astype(float) 
+        botNBR[botNBR==0] = np.nan
+        NBRArray = np.divide(topNBR,botNBR, where= ((botNBR!=np.nan) | (topNBR!=np.nan)) )*1000
+        np.nan_to_num(NBRArray,False, nan=-32768, posinf=32767, neginf=-32767)
+
+        driver = gdal.GetDriverByName("GTiff")
+        fileout = driver.Create(pathNBR,sizeX,sizeY, 1, gdal.GDT_Int16, ["COMPRESS=LZW"])
+        fileout.GetRasterBand(1).WriteArray(NBRArray)
+        fileout.GetRasterBand(1).SetNoDataValue(-32768)
+        fileout.SetProjection(src.ExportToWkt())
+        fileout.SetSpatialRef(src)
+        fileout.SetGeoTransform(georef)
+        fileout.BuildOverviews('AVERAGE', tab)
+        fileout.FlushCache()
+        fileout = None
+
+
+    if pathNDVI : 
+
+        topNDVI = (arrNir - arrRed).astype(float) 
+        botNDVI = (arrNir + arrRed).astype(float) 
+        botNDVI[botNDVI==0] = np.nan
+        NDVIArray = np.divide(topNDVI,botNDVI, where= ((botNDVI!=np.nan) | (topNDVI!=np.nan)) )*1000
+        np.nan_to_num(NDVIArray,False, nan=-32768, posinf=32767, neginf=-32767)
+
+        driver = gdal.GetDriverByName("GTiff")
+
+        fileout = driver.Create(pathNDVI,sizeX,sizeY, 1, gdal.GDT_Int16, ["COMPRESS=LZW"])
+        fileout.GetRasterBand(1).WriteArray(NDVIArray)
+        fileout.GetRasterBand(1).SetNoDataValue(-32768)
+        fileout.SetProjection(src.ExportToWkt())
+        fileout.SetSpatialRef(src)
+        fileout.SetGeoTransform(georef)
+        fileout.BuildOverviews('AVERAGE', tab)
+        fileout.FlushCache()
+        fileout = None
+
+
+
+
+#tileList = ['T17UPQ', 'T17UPP', 'T17TPN', 'T17TPM', 'T17UQQ', 'T17UQP', 'T17TQN', 'T17TQM', 'T18UUV', 'T18UUU', 'T18TUT', 'T18UVU', 'T18UVV']
+#tileList = ['T17TPM']
+
+#textFileLocation = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\Information"
+#pasteDir = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL\\Test_NBR_NDVI"
+
+
+
+#Tile2Use = {}
+#tab = []
+
+'''
+for tile in tileList :
+    tileName = tile + ".txt"
+    tilePath = os.path.join(textFileLocation, tileName)
+    listObj = pickle.load(open(tilePath,'rb'))
+    for obj in listObj :
+        dirName = obj.pathSAFE
+        param = dirName.split('_')
+        date = param[2].split('T')
+        if date[0] > "20200701" :
+            currentDir = obj.pathSAFE
+            currentPasteDir = pasteDir + '\\' + obj.nameIMG.split('.')[0]
+            #os.mkdir(currentPasteDir)
+            nirName = param[-2] + '_' + param[-5] + '_NIR_Cut.tif'
+            nbrName = param[-2] + '_' + param[-5] + '_NBR.tif'
+            ndviName = param[-2] + '_' + param[-5] + '_NDVI.tif'
+            #nirTif = os.path.join(currentDir, nirName)
+            nir2Paste = os.path.join(currentPasteDir, nirName)
+            nbr2Paste = os.path.join(currentPasteDir, nbrName)
+            ndvi2Paste = os.path.join(currentPasteDir, ndviName)
+            #shutil.copyfile(nirTif, nir2Paste)
+            Tile2Use[currentDir] = (nir2Paste,nbr2Paste, ndvi2Paste)
+            break
+
+for currentDir, val in Tile2Use.items() :
+    createNBR_NDVI(val[0],val[1], val[2])
+    #get NIR Path
+    #paste NIR
+
+'''
+
 #U:\Mosaique_Sentinel\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE
 
 #b1 = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\GRANULE\\L1C_T18TVT_A018284_20200905T160134\\IMG_DATA\\T18TVT_20200905T155829_B01.jp2'
@@ -406,7 +530,7 @@ def createTIFfromBand(band1, band2, band3, proj, pixelSize, savePath, cutPath=''
 #img = 'U:\\Mosaique_Sentinel\\S2B_MSIL1C_20200905T155829_N0209_R097_T18TVT_20200905T193742.SAFE\\T18TVT_20200905T155829.img'
 #createTIFfromBand(b1, b2, b3, '60 m', sPath, cPath, img)
 '''
-listSAFEDirectory = fileProcessing.getAllSAFEPath()
+listSAFEDirectory = getAllSAFEPath()
 
 facteur = int(len(listSAFEDirectory)/4)
 
@@ -414,7 +538,6 @@ p1 = listSAFEDirectory[:facteur]
 p2 = listSAFEDirectory[facteur:facteur*2]
 p3 = listSAFEDirectory[facteur*2:facteur*3]
 p4 = listSAFEDirectory[facteur*3:]
-
 
 
 if sys.argv[1] == '1' :
@@ -425,10 +548,18 @@ elif sys.argv[1] == '3' :
     listSafe = p3
 elif sys.argv[1] == '4' :
     listSafe = p4
+else : listSafe = p1
     
 for path in listSafe :
     try :
-        createTIF(path)
+        param = path.split('_')
+        nirName = param[-2] + '_' + param[-5] + '_NIR_Cut.tif'
+        nbrName = param[-2] + '_' + param[-5] + '_NBR.tif'
+        nirPath = os.path.join(path, nirName)
+        nbrPath = os.path.join(path, nbrName)
+        if os.path.exists(nirPath):
+            #print('here')
+            createNBR_NDVI(nirPath, nbrPath)
     except :
         pass
 '''

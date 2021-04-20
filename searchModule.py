@@ -27,7 +27,7 @@ from PIL import Image
 import ressource, tifCreation, fileProcessing
 from ui_menuRecherche import Ui_searchMenu
 #from fileProcessing import dataLocation
-dataLocation = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
+dataLocation = "\\\\Sef1271a\\f1271i\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
 
 
 

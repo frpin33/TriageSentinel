@@ -13,11 +13,12 @@ L'analyse permet de :
 
 '''
 
-import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr, tifCreation
+import sys, ressource, os, subprocess, time, csv, tempfile, pickle, shutil, gdal, osr
+from tifCreation import createTIF, createNBR_NDVI
 import numpy as np
 
-
-dataLocation = "I:\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
+dataLocation = "\\\\Sef1271a\\f1271i\\TeleDiff\\Commun\\a-Images-Satellites\\SENTINEL"
+pathConda = "\\Seapriv\\usagers\\Pinfr1\\Mosaique_Sentinel\\Code\\launchConda.bat"
 possibleYears = ["2017","2018","2019", "2020"]
 keepTopValue = 5
 
@@ -64,7 +65,7 @@ def cloudProcess(delete=False, listNew=None) :
         listSAFEDirectory = listNew
     else :
         listSAFEDirectory = getAllSAFEPath()
-
+    print(listSAFEDirectory)
     for dirPath in listSAFEDirectory :
         try :
             dirName = os.path.basename(dirPath) 
@@ -81,12 +82,12 @@ def cloudProcess(delete=False, listNew=None) :
                         if image.split('_')[-1] == "TCI.jp2":
                             TCIPath = os.path.join(pathData, image)
                             if os.path.getsize(TCIPath) > 50*10**6 : 
-                                subprocess.call(["launchConda.bat", dirPath, outIMG, tempDir])
+                                subprocess.call([pathConda, dirPath, outIMG, tempDir])
                             else : 
                                 shutil.rmtree(dirPath)
 
                 else :     
-                    subprocess.call(["launchConda.bat", dirPath, outIMG, tempDir])
+                    subprocess.call([pathConda, dirPath, outIMG, tempDir])
         except :
             pass
     shutil.rmtree(tempDir)
@@ -153,6 +154,25 @@ def isTIFProcessDone():
             if not os.path.exists(item) :
                 tifMissing.append(dirPath)
                 break
+    
+    return(tifMissing)
+
+def isNBRMissing() :
+    listSAFEDirectory = getAllSAFEPath()
+    tifMissing = {}
+    for dirPath in listSAFEDirectory :
+
+        dirName = os.path.basename(dirPath) 
+        param = dirName.split('_')
+        
+        nircut = param[5] + '_' + param[2] +'_NIR_Cut.tif'
+        nbrName = param[-2] + '_' + param[-5] + '_NBR.tif'
+
+        nirPath = os.path.join(dirPath, nircut)
+        nbrPath = os.path.join(dirPath, nbrName)
+        
+        if os.path.exists(nirPath) and not os.path.exists(nbrPath) :
+            tifMissing[nirPath] = nbrPath
     
     return(tifMissing)
 
@@ -357,7 +377,12 @@ if __name__ == "__main__":
     toDo = isTIFProcessDone()
 
     for item in toDo :
-        try : tifCreation.createTIF(item)
+        try : createTIF(item)
+        except : pass
+    
+    nbrDict = isNBRMissing()
+    for key, value in nbrDict.items():
+        try: createNBR_NDVI(key, value)
         except : pass
 
 
